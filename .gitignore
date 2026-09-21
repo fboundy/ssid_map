@@ -1,0 +1,10 @@
+.pio/
+.vscode/
+sdkconfig.esp32s3_n16r8
+sdkconfig.*.old
+managed_components/
+*.map
+
+# Local config with AP passphrase; copy config.example.h to config.h
+include/config.h
+arduino/include/config.h
