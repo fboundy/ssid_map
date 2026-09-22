@@ -11,6 +11,7 @@ void start() {}
 #include <string>
 #include <vector>
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "driver/spi_master.h"
 #include "esp_heap_caps.h"
 #include "esp_lcd_io_spi.h"
@@ -39,7 +40,10 @@ static const char* TAG = "lcd";
 #define PIN_LCD_DC    11
 #define PIN_LCD_RST   9
 #define PIN_LCD_BL    14
-#define LCD_PCLK_HZ   (20 * 1000 * 1000)
+#define LCD_PCLK_HZ   (40 * 1000 * 1000)
+#define BL_PWM_HZ     20000
+#define BL_PWM_BITS   LEDC_TIMER_10_BIT
+#define BL_PERCENT    90
 
 // Panel is 170x320 portrait on a 240x320 ST7789; used rotated to landscape.
 #define LCD_W   320
@@ -142,12 +146,46 @@ static void flush() {
 }
 
 // ---- Panel bring-up ---------------------------------------------------------------
+// Panel tuning from Waveshare's ESP32-S3-LCD-1.9 demo (08_LVGL_Test/lcd_bsp.c).
+// Sleep-out / MADCTL / COLMOD / display-on are done by the IDF ST7789 driver;
+// these set porch, gate, VCOM, power and gamma for this particular glass.
+struct TuneCmd { uint8_t cmd; uint8_t n; uint8_t p[14]; };
+static const TuneCmd kTuning[] = {
+    {0xB2, 5, {0x0c, 0x0c, 0x00, 0x33, 0x33}},  // porch control
+    {0xB7, 1, {0x35}},                          // gate control
+    {0xBB, 1, {0x13}},                          // VCOM
+    {0xC0, 1, {0x2c}},                          // LCM control
+    {0xC2, 1, {0x01}},                          // VDV/VRH enable
+    {0xC3, 1, {0x0b}},                          // VRH
+    {0xC4, 1, {0x20}},                          // VDV
+    {0xC6, 1, {0x0f}},                          // frame rate 60 Hz
+    {0xD0, 2, {0xa4, 0xa1}},                    // power control 1
+    {0xD6, 1, {0xa1}},
+    {0xE0, 14, {0x00, 0x03, 0x07, 0x08, 0x07, 0x15, 0x2A, 0x44, 0x42, 0x0A, 0x17, 0x18, 0x25, 0x27}},  // gamma +
+    {0xE1, 14, {0x00, 0x03, 0x08, 0x07, 0x07, 0x23, 0x2A, 0x43, 0x42, 0x09, 0x18, 0x17, 0x25, 0x27}},  // gamma -
+};
+
+static void backlight(int percent) {
+  uint32_t maxDuty = (1u << BL_PWM_BITS) - 1;
+  ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, (uint32_t)percent * maxDuty / 100);
+  ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+}
+
 static bool initPanel() {
-  gpio_config_t bl = {};
-  bl.pin_bit_mask = 1ULL << PIN_LCD_BL;
-  bl.mode = GPIO_MODE_OUTPUT;
-  gpio_config(&bl);
-  gpio_set_level((gpio_num_t)PIN_LCD_BL, 0);
+  ledc_timer_config_t tcfg = {};
+  tcfg.speed_mode = LEDC_LOW_SPEED_MODE;
+  tcfg.duty_resolution = BL_PWM_BITS;
+  tcfg.timer_num = LEDC_TIMER_0;
+  tcfg.freq_hz = BL_PWM_HZ;
+  tcfg.clk_cfg = LEDC_AUTO_CLK;
+  ledc_timer_config(&tcfg);
+  ledc_channel_config_t ccfg = {};
+  ccfg.gpio_num = PIN_LCD_BL;
+  ccfg.speed_mode = LEDC_LOW_SPEED_MODE;
+  ccfg.channel = LEDC_CHANNEL_0;
+  ccfg.timer_sel = LEDC_TIMER_0;
+  ccfg.duty = 0;
+  ledc_channel_config(&ccfg);
 
   spi_bus_config_t bus = {};
   bus.sclk_io_num = PIN_LCD_SCLK;
@@ -178,6 +216,7 @@ static bool initPanel() {
 
   esp_lcd_panel_reset(s_panel);
   esp_lcd_panel_init(s_panel);
+  for (const TuneCmd& c : kTuning) esp_lcd_panel_io_tx_param(io, c.cmd, c.p, c.n);
   esp_lcd_panel_invert_color(s_panel, true);  // IPS panel: vendor init sends INVON
   esp_lcd_panel_swap_xy(s_panel, true);       // landscape (vendor MADCTL 0x70)
   esp_lcd_panel_mirror(s_panel, true, false);
@@ -321,12 +360,13 @@ void start() {
     ESP_LOGE(TAG, "panel init failed; display disabled");
     return;
   }
-  // Splash, then backlight on so the first thing seen is a drawn frame.
-  fillRect(0, 0, LCD_W, LCD_H, C_BG);
-  text(4, 60, FONT_LARGE, C_ACC, AP_SSID);
-  text(4, 95, FONT_SMALL, C_DIM, "starting...");
+  // Splash on a solid colour (so a driving fault and a backlight fault look
+  // different), then backlight on so the first thing seen is a drawn frame.
+  fillRect(0, 0, LCD_W, LCD_H, rgb(10, 40, 90));
+  text(4, 60, FONT_LARGE, C_FG, AP_SSID);
+  text(4, 95, FONT_SMALL, C_FG, "starting...");
   flush();
-  gpio_set_level((gpio_num_t)PIN_LCD_BL, 1);
+  backlight(BL_PERCENT);
   ESP_LOGI(TAG, "ST7789 %dx%d up", LCD_W, LCD_H);
   xTaskCreatePinnedToCore(displayTask, "lcd", 6144, nullptr, 3, nullptr, 1);
 }
