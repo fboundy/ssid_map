@@ -28,6 +28,7 @@ void start() {}
 #include "app.h"
 #include "config.h"
 #include "fonts.h"
+#include "speedtest.h"
 #include "store.h"
 
 static const char* TAG = "lcd";
@@ -276,9 +277,21 @@ static void render(const StatusSnapshot& s, const std::vector<Client>& clients, 
     text(4, y, FONT_LARGE, C_FG, s.staSsid, (LCD_W - 8) / FONT_LARGE.width);
     y += FONT_LARGE.height + 1;
     char line[48];
-    snprintf(line, sizeof(line), "%s  %d dBm", s.staIp.c_str(), s.staRssi);
+    snprintf(line, sizeof(line), "%s %ddBm", s.staIp.c_str(), s.staRssi);
     text(4, y, FONT_SMALL, s.nat ? C_OK : C_WARN, line);
-    textRight(LCD_W - 4, y, FONT_SMALL, s.nat ? C_OK : C_WARN, s.nat ? "NAT on" : "NAT off");
+    // Right-hand slot: speed test result, or NAT state when there isn't one.
+    speedtest::Result sp = speedtest::last();
+    if (!s.nat) {
+      textRight(LCD_W - 4, y, FONT_SMALL, C_WARN, "NAT off");
+    } else if (sp.running) {
+      textRight(LCD_W - 4, y, FONT_SMALL, C_WARN, "testing...");
+    } else if (sp.valid) {
+      char spd[32];
+      snprintf(spd, sizeof(spd), "D%.1f U%.1f Mb", sp.downMbps, sp.upMbps);
+      textRight(LCD_W - 4, y, FONT_SMALL, C_ACC, spd);
+    } else if (!sp.error.empty()) {
+      textRight(LCD_W - 4, y, FONT_SMALL, C_BAD, "test failed");
+    }
   } else {
     std::string why;
     switch (s.mode) {
@@ -335,6 +348,9 @@ static void displayTask(void*) {
                       "|" + (s.nat ? "1" : "0") + "|" + std::to_string((s.countdownMs + 999) / 1000) + "|" + s.target + "|" +
                       s.visibleOverride;
     for (auto& c : clients) key += "|" + c.mac + "=" + c.ip;
+    speedtest::Result sp = speedtest::last();
+    key += "|" + std::to_string(sp.running) + std::to_string(sp.valid) + std::to_string((int)(sp.downMbps * 10)) + "/" +
+           std::to_string((int)(sp.upMbps * 10)) + sp.error;
     int64_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
     if (key != lastKey || now - lastFlush > 10000) {
       render(s, clients, apIp);

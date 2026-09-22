@@ -46,3 +46,15 @@
 // UK/EU: channels 1-13. (The IDF default "01" world domain only uses 1-11.)
 #define WIFI_COUNTRY       "GB"
 #define WIFI_COUNTRY_NCHAN 13
+
+// ---- Periodic Ookla speed test (Waveshare build only: -DXEBRO_SPEEDTEST) --------
+// Runs SPEEDTEST_DELAY_MS after the uplink comes up, then every
+// SPEEDTEST_INTERVAL_MS while routing. Each direction streams for
+// SPEEDTEST_SECONDS, so an hourly test costs roughly 2 x SECONDS x link rate
+// of upstream traffic (~35 MB/h at 20 Mbit/s).
+#define SPEEDTEST_DELAY_MS     5000UL
+#define SPEEDTEST_INTERVAL_MS  3600000UL
+#define SPEEDTEST_SECONDS      6
+// Leave empty to pick the nearest server from speedtest.net; or force one,
+// e.g. "speedtest.example.net:8080".
+#define SPEEDTEST_SERVER       ""

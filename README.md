@@ -9,7 +9,7 @@ Two build targets (`platformio.ini`):
 | env | board | notes |
 |---|---|---|
 | `esp32s3_n16r8` | Sparkle IoT ESP32-S3 N16R8 | headless; console on UART0 (CH343 bridge) |
-| `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | adds a status readout on the 1.9" ST7789 LCD; native USB for flashing/console |
+| `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | adds a status readout on the 1.9" ST7789 LCD and an hourly Ookla speed test; native USB for flashing/console |
 
 Native **ESP-IDF 5.4** build. The original Arduino-core version is kept in
 [arduino/](arduino/) for reference; it behaves the same but cannot tune the
@@ -61,7 +61,8 @@ changes). No touch interaction.
 
 * Title bar: AP name and a colour-coded mode badge (green routing, amber
   countdown/connecting/retry, red hold/override; countdown shows seconds left).
-* Uplink: connected SSID in large type, then IP, RSSI and `NAT on/off` — or
+* Uplink: connected SSID in large type, then IP and RSSI with the latest
+  speed test on the right (`D23.9 U18.5 Mb`, `testing...`, or `NAT off`) — or
   "No uplink" with the reason (no SSIDs selected, joining X, override: Y, …).
 * Clients: count, the AP's own IP, and one row per connected device with its
   DHCP lease IP and MAC (`+N more` when the list overflows).
@@ -70,6 +71,19 @@ Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
 backlight 14 — from Waveshare's demo code), 35-px panel offset, framebuffer in
 PSRAM pushed through DMA bounce buffers. Text uses a bitmap font generated from
 Consolas by GDI+ (`src/fonts.h`).
+
+### Speed test (`ws_touch_lcd_19` only, `-DXEBRO_SPEEDTEST`)
+
+An Ookla (speedtest.net) test runs 5 s after the uplink comes up and then
+every hour while routing; the web page also has a *Speed test* button.
+[src/speedtest.cpp](src/speedtest.cpp) fetches the nearest server from
+`speedtest.net/api/js/servers` (HTTPS, IDF cert bundle), then streams a
+plain-HTTP download (`/download?size=`, falling back to the classic
+`random4000x4000.jpg`) and a sized upload (`/upload`, falling back to
+`upload.php`) against the server's port 8080, 6 s each, single TCP stream.
+Results go to the LCD, the web status card and the serial log. Timings and a
+fixed server override are in `config.h` (`SPEEDTEST_*`). Each run moves
+roughly 2 × 6 s × link rate of data (~35 MB at 20 Mbit/s).
 
 ## Throughput tuning (`sdkconfig.defaults`)
 

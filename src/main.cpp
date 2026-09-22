@@ -33,6 +33,7 @@
 #include "dns_proxy.h"
 #include "web_ui.h"
 #include "display.h"
+#include "speedtest.h"
 
 static const char* TAG = "xebro";
 
@@ -216,6 +217,7 @@ static void enableRouting() {
            ip4ToString(dns).c_str());
   if (!s_natOn) s_lastError = std::string("NAPT enable failed: ") + esp_err_to_name(err);
   setMode(Mode::ROUTING);
+  speedtest::trigger();
 }
 
 static void disableRouting(const char* why) {
@@ -564,7 +566,8 @@ extern "C" void app_main(void) {
 
   dnsproxy::start(store.apIp());
   webui::start(store.apIp());
-  display::start();  // no-op unless built for a board with an LCD
+  display::start();    // no-op unless built for a board with an LCD
+  speedtest::start();  // no-op unless built with -DXEBRO_SPEEDTEST
 
   appLock();
   if (store.count() > 0) {

@@ -13,6 +13,7 @@
 #include "app.h"
 #include "store.h"
 #include "dns_proxy.h"
+#include "speedtest.h"
 #include "page.h"
 
 static const char* TAG = "web";
@@ -155,6 +156,22 @@ static esp_err_t handleStatus(httpd_req_t* req) {
   cJSON_AddStringToObject(sta, "dns", s.staDns.c_str());
   cJSON_AddNumberToObject(sta, "rssi", s.staRssi);
 
+  speedtest::Result st = speedtest::last();
+  cJSON* sp = cJSON_AddObjectToObject(root, "speed");
+#ifdef XEBRO_SPEEDTEST
+  cJSON_AddBoolToObject(sp, "enabled", true);
+#else
+  cJSON_AddBoolToObject(sp, "enabled", false);
+#endif
+  cJSON_AddBoolToObject(sp, "valid", st.valid);
+  cJSON_AddBoolToObject(sp, "running", st.running);
+  cJSON_AddNumberToObject(sp, "down", st.downMbps);
+  cJSON_AddNumberToObject(sp, "up", st.upMbps);
+  cJSON_AddNumberToObject(sp, "ping", st.pingMs);
+  cJSON_AddStringToObject(sp, "server", st.server.c_str());
+  cJSON_AddStringToObject(sp, "error", st.error.c_str());
+  cJSON_AddNumberToObject(sp, "ageSec", st.valid ? (double)((esp_timer_get_time() / 1000 - st.atMs) / 1000) : -1);
+
   return sendJson(req, root);
 }
 
@@ -240,6 +257,16 @@ static esp_err_t handleApNet(httpd_req_t* req) {
   return sendResult(req, true, "AP network set to " + now + "/24. Reboot to apply.");
 }
 
+static esp_err_t handleSpeedtest(httpd_req_t* req) {
+#ifdef XEBRO_SPEEDTEST
+  if (app::snapshot().mode != Mode::ROUTING) return sendResult(req, false, "Not routing; no uplink to test");
+  speedtest::trigger();
+  return sendResult(req, true, "Speed test starting");
+#else
+  return sendResult(req, false, "Speed test not built into this firmware");
+#endif
+}
+
 static void rebootTask(void*) {
   vTaskDelay(pdMS_TO_TICKS(800));
   ESP_LOGI(TAG, "reboot requested");
@@ -291,6 +318,7 @@ void start(uint32_t apIp) {
       {.uri = "/api/override/remove", .method = HTTP_POST, .handler = handleOverrideRemove, .user_ctx = nullptr},
       {.uri = "/api/apnet", .method = HTTP_POST, .handler = handleApNet, .user_ctx = nullptr},
       {.uri = "/api/reboot", .method = HTTP_POST, .handler = handleReboot, .user_ctx = nullptr},
+      {.uri = "/api/speedtest", .method = HTTP_POST, .handler = handleSpeedtest, .user_ctx = nullptr},
       // Registered last: wildcard catch-all for captive-portal probes.
       {.uri = "/*", .method = HTTP_GET, .handler = handleNotFound, .user_ctx = nullptr},
   };

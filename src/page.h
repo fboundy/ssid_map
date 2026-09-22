@@ -44,7 +44,9 @@ dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}dt{co
     <button class="pri" id="btnConnect" onclick="api('/api/connect')">Connect now</button>
     <button id="btnDisconnect" onclick="api('/api/disconnect')">Disconnect</button>
     <button id="btnScan" onclick="api('/api/scan')">Rescan</button>
+    <button id="btnSpeed" onclick="api('/api/speedtest')" style="display:none">Speed test</button>
   </div>
+  <div id="speed" class="mut small" style="margin-top:8px"></div>
 </section>
 
 <section class="card">
@@ -118,6 +120,9 @@ function render(s){
   $('btnConnect').disabled=!s.saved.length||!!s.override;
   $('btnDisconnect').disabled=!(s.mode==='routing'||s.mode==='connecting'||s.mode==='countdown'||s.mode==='retry');
   $('btnScan').disabled=s.scanning;
+  const sp=s.speed||{};$('btnSpeed').style.display=sp.enabled?'':'none';$('btnSpeed').disabled=!!sp.running||s.mode!=='routing';
+  let spt='';if(sp.enabled){if(sp.running)spt='Speed test running…';else if(sp.valid)spt='Speed test: '+sp.down.toFixed(1)+' Mb/s down / '+sp.up.toFixed(1)+' Mb/s up · '+sp.ping+' ms · '+sp.server+' · '+(sp.ageSec<60?sp.ageSec+' s':Math.round(sp.ageSec/60)+' min')+' ago';else if(sp.error)spt='Speed test failed: '+sp.error;else spt='Speed test: not run yet';if(sp.valid&&sp.error)spt+=' ('+sp.error+')';}
+  $('speed').textContent=spt;
   $('scanInfo').textContent=s.scanning?'scanning…':(s.scanAge<0?'no scan yet':'updated '+Math.round(s.scanAge/1000)+'s ago');
   const tb=$('scan');tb.innerHTML='';
   if(!s.scan.length)tb.append(el('tr',{},el('td',{colspan:3,class:'mut'},s.scanning?'Scanning…':'Nothing found yet')));
