@@ -1,8 +1,15 @@
 # Penrith MRT Xebro — ESP32-S3 Wi-Fi selector / NAT router
 
-Firmware for a Sparkle IoT ESP32-S3 N16R8 (ESP32-S3-WROOM-1, 16 MB flash, 8 MB
-PSRAM). The device always advertises one access point and can join one of a
-user-selected list of upstream networks, routing AP clients through it (NAT).
+Firmware for ESP32-S3 boards with 16 MB flash + 8 MB octal PSRAM. The device
+always advertises one access point and can join one of a user-selected list of
+upstream networks, routing AP clients through it (NAT).
+
+Two build targets (`platformio.ini`):
+
+| env | board | notes |
+|---|---|---|
+| `esp32s3_n16r8` | Sparkle IoT ESP32-S3 N16R8 | headless; console on UART0 (CH343 bridge) |
+| `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | adds a status readout on the 1.9" ST7789 LCD; native USB for flashing/console |
 
 Native **ESP-IDF 5.4** build. The original Arduino-core version is kept in
 [arduino/](arduino/) for reference; it behaves the same but cannot tune the
@@ -47,6 +54,23 @@ subnet) is stored in NVS and survives power cycles and reflashes.
 
 JSON API (form-encoded POSTs) lives under `/api/*`; see [src/web_ui.cpp](src/web_ui.cpp).
 
+### LCD status page (`ws_touch_lcd_19` only)
+
+Landscape 320×170, refreshed once a second (redrawn only when something
+changes). No touch interaction.
+
+* Title bar: AP name and a colour-coded mode badge (green routing, amber
+  countdown/connecting/retry, red hold/override; countdown shows seconds left).
+* Uplink: connected SSID in large type, then IP, RSSI and `NAT on/off` — or
+  "No uplink" with the reason (no SSIDs selected, joining X, override: Y, …).
+* Clients: count, the AP's own IP, and one row per connected device with its
+  DHCP lease IP and MAC (`+N more` when the list overflows).
+
+Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
+backlight 14 — from Waveshare's demo code), 35-px panel offset, framebuffer in
+PSRAM pushed through DMA bounce buffers. Text uses a bitmap font generated from
+Consolas by GDI+ (`src/fonts.h`).
+
 ## Throughput tuning (`sdkconfig.defaults`)
 
 * NAT: `LWIP_IP_FORWARD`, `LWIP_IPV4_NAPT`, `LWIP_L2_TO_L3_COPY`.
@@ -55,7 +79,8 @@ JSON API (form-encoded POSTs) lives under `/api/*`; see [src/web_ui.cpp](src/web
   block-ack windows, modem sleep off, IPv6 off, `-O2`, 240 MHz, octal PSRAM.
 
 The radio is shared between the AP and the uplink on one channel, so the ceiling
-is roughly half of what a single link would do; expect low tens of Mbit/s.
+is roughly half of what a single link would do; measured 17.5/19.4 Mbit/s
+down/up against a 500/100 uplink.
 
 ## Building
 
@@ -64,14 +89,19 @@ platform 54.03.21, `framework = espidf` (IDF 5.4.2).
 
 ```
 cp include/config.example.h include/config.h   # then set AP_PASS (gitignored)
-pio run              # build
-pio run -t upload    # flash (COM5, 921600 baud — see platformio.ini)
-pio device monitor   # serial log at 115200
+pio run -e esp32s3_n16r8                     # Sparkle (headless)
+pio run -e esp32s3_n16r8 -t upload           # flash via COM5 (see platformio.ini)
+pio run -e ws_touch_lcd_19 -t upload --upload-port COM4   # Waveshare, native USB
+pio device monitor                           # serial log at 115200
 ```
 
 `include/config.h` holds the AP passphrase and is not committed; the committed
 `config.example.h` has every other tunable at its default. The `arduino/`
 project uses the same arrangement.
+
+The Waveshare board enumerates as an Espressif "USB Serial Device" (VID 303A,
+PID 1001); the COM number varies, so pass `--upload-port`. Logs go to both
+UART0 and the USB port.
 
 Notes for this Windows machine:
 
@@ -91,7 +121,7 @@ Notes for this Windows machine:
 ## Layout
 
 ```
-platformio.ini      board/env; framework = espidf
+platformio.ini      envs for both boards; framework = espidf
 sdkconfig.defaults  IDF options (NAT, throughput, memory)
 partitions.csv      nvs + 4 MB factory app
 include/config.h    tunables: AP name/password, timings (local; from config.example.h)
@@ -100,5 +130,7 @@ src/store.*         NVS-backed lists (selected, over-rides, AP subnet)
 src/dns_proxy.*     captive / forwarding DNS task on UDP 53
 src/web_ui.*        esp_http_server routes + cJSON status
 src/page.h          the single-page UI (inline HTML/CSS/JS)
+src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
+src/fonts.h         generated 1-bit bitmap fonts (Consolas 16px / 24px bold)
 arduino/            previous Arduino-core implementation
 ```

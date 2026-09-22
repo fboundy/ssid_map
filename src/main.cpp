@@ -32,6 +32,7 @@
 #include "store.h"
 #include "dns_proxy.h"
 #include "web_ui.h"
+#include "display.h"
 
 static const char* TAG = "xebro";
 
@@ -563,6 +564,7 @@ extern "C" void app_main(void) {
 
   dnsproxy::start(store.apIp());
   webui::start(store.apIp());
+  display::start();  // no-op unless built for a board with an LCD
 
   appLock();
   if (store.count() > 0) {

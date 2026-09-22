@@ -1,6 +1,7 @@
 .pio/
 .vscode/
-sdkconfig.esp32s3_n16r8
+sdkconfig.*
+!sdkconfig.defaults
 sdkconfig.*.old
 managed_components/
 *.map
