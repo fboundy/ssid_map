@@ -31,7 +31,8 @@ uint32_t NetworkStore::hostInNet(int octet) const {
 
 // Layout in NVS: "n" = count, then "s<i>" / "p<i>" per selected network;
 // "on" = over-ride count, then "o<i>" / "e<i>" (ssid / enabled) per over-ride;
-// "apnet" = AP /24 network address (network byte order, 0 = default).
+// "apnet" = AP /24 network address (network byte order, 0 = default);
+// "hmac"/"hname" = the single named host.
 static std::string keyFor(char prefix, int i) {
   char k[8];
   snprintf(k, sizeof(k), "%c%d", prefix, i);
@@ -50,6 +51,8 @@ static std::string getStr(nvs_handle_t h, const std::string& key) {
 void NetworkStore::load() {
   _count = 0;
   _ovCount = 0;
+  _hostMac.clear();
+  _hostName.clear();
   ip4FromString(AP_DEFAULT_NETWORK, _apNet);
 
   nvs_handle_t h;
@@ -86,6 +89,9 @@ void NetworkStore::load() {
     _ov[_ovCount].enabled = en != 0;
     _ovCount++;
   }
+  _hostMac = getStr(h, "hmac");
+  _hostName = getStr(h, "hname");
+
   nvs_close(h);
   ESP_LOGI(TAG, "loaded %d saved network(s), %d over-ride(s), AP net %s", _count, _ovCount, ip4ToString(_apNet).c_str());
 }
@@ -108,6 +114,8 @@ void NetworkStore::save() {
     nvs_set_str(h, keyFor('o', i).c_str(), _ov[i].ssid.c_str());
     nvs_set_u8(h, keyFor('e', i).c_str(), _ov[i].enabled ? 1 : 0);
   }
+  nvs_set_str(h, "hmac", _hostMac.c_str());
+  nvs_set_str(h, "hname", _hostName.c_str());
   esp_err_t err = nvs_commit(h);
   nvs_close(h);
   ESP_LOGI(TAG, "saved %d network(s), %d over-ride(s) (%s)", _count, _ovCount, esp_err_to_name(err));
@@ -194,4 +202,29 @@ bool NetworkStore::removeOverride(const std::string& ssid) {
   _ov[_ovCount] = Override{};
   save();
   return true;
+}
+
+// Accepts aa:bb:cc:dd:ee:ff or aabbccddeeff, any case; stores the colon form.
+bool NetworkStore::setHost(const std::string& mac, const std::string& name) {
+  std::string hex;
+  for (char c : mac) {
+    if (isxdigit((unsigned char)c)) hex += tolower(c);
+    else if (c != ':' && c != '-' && c != '.' && c != ' ') return false;
+  }
+  if (hex.size() != 12) return false;
+  std::string norm;
+  for (size_t i = 0; i < 12; i += 2) {
+    if (i) norm += ':';
+    norm += hex.substr(i, 2);
+  }
+  _hostMac = norm;
+  _hostName = name.empty() ? norm : name.substr(0, 24);
+  save();
+  return true;
+}
+
+void NetworkStore::clearHost() {
+  _hostMac.clear();
+  _hostName.clear();
+  save();
 }

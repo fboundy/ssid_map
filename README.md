@@ -50,27 +50,35 @@ subnet) is stored in NVS and survives power cycles and reflashes.
   Networks not in the scan (hidden SSIDs) can be added by name.
 * **Over-ride SSIDs** — pick from the scan or type one; enable/disable each
   with the checkbox; remove.
+* **Named host** — give one connected device (picked from the client list or
+  typed as a MAC) a name. Only one at a time: setting a new one replaces it.
+  Purely a label for the LCD — it does not affect routing.
 * **Access point** — change the /24 network, reboot.
 
 JSON API (form-encoded POSTs) lives under `/api/*`; see [src/web_ui.cpp](src/web_ui.cpp).
 
 ### LCD status page (`ws_touch_lcd_19` only)
 
-Landscape 320×170, refreshed once a second (redrawn only when something
-changes). No touch interaction.
+Landscape 320×170, split in two. Refreshed once a second, redrawn only when
+something changes. No touch interaction.
 
-* Title bar: AP name and a colour-coded mode badge (green routing, amber
-  countdown/connecting/retry, red hold/override; countdown shows seconds left).
-* Uplink: connected SSID in large type, then IP and RSSI with the latest
-  speed test on the right (`D23.9 U18.5 Mb`, `testing...`, or `NAT off`) — or
-  "No uplink" with the reason (no SSIDs selected, joining X, override: Y, …).
-* Clients: count, the AP's own IP, and one row per connected device with its
-  DHCP lease IP and MAC (`+N more` when the list overflows).
+**Top half** — the uplink:
+
+* `Connected to:` above the SSID in large type, then the latest speed test as
+  a green down-arrow and a blue up-arrow with the two figures in Mbit/s.
+* No uplink, NAT off, or a failed test: the figures are replaced by a red
+  no-entry symbol and `No Internet`. While a test runs: `Testing...`.
+* If an enabled over-ride SSID is in range the whole half becomes
+  `Over-ridden by` above that SSID, in red.
+
+**Bottom half** — the named host: `<name> Connected` in green with its lease
+IP underneath, `<name> Not Connected` in grey, or `No named host set`.
 
 Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
-backlight 14 — from Waveshare's demo code), 35-px panel offset, framebuffer in
-PSRAM pushed through DMA bounce buffers. Text uses a bitmap font generated from
-Consolas by GDI+ (`src/fonts.h`).
+backlight 14 on LEDC PWM — from Waveshare's demo code), 35-px panel offset,
+vendor porch/VCOM/gamma tuning registers, framebuffer in PSRAM pushed through
+DMA bounce buffers. Text uses a bitmap font generated from Consolas by GDI+
+(`src/fonts.h`); arrows and the no-entry symbol are drawn as primitives.
 
 ### Speed test (`ws_touch_lcd_19` only, `-DXEBRO_SPEEDTEST`)
 

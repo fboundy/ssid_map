@@ -77,6 +77,19 @@ dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}dt{co
 </section>
 
 <section class="card">
+  <h2>Named host</h2>
+  <p class="mut small" style="margin:0 0 8px">One device can be given a name; the LCD shows whether it is connected. Setting a new one replaces it.</p>
+  <div id="hostNow" class="alert" style="margin:0 0 10px"></div>
+  <div class="row">
+    <select id="hostPick" class="grow"><option value="">Pick a connected device...</option></select>
+    <input id="hostMac" class="grow" placeholder="or type aa:bb:cc:dd:ee:ff" maxlength="17">
+    <input id="hostName" placeholder="Name" maxlength="24" style="width:130px">
+    <button class="pri" onclick="setHost()">Set</button>
+    <button class="danger" onclick="api('/api/host/remove')">Clear</button>
+  </div>
+</section>
+
+<section class="card">
   <h2>Access point</h2>
   <div class="row">
     <label class="mut" for="apnet">Network (/24)</label>
@@ -99,6 +112,7 @@ async function api(path,params){try{const body=new URLSearchParams(params||{});c
 function saveNet(ssid,pass){if(!ssid)return toast('SSID required',true);api('/api/save',{ssid,pass}).then(ok=>{if(ok){$('addSsid').value='';$('addPass').value='';}});}
 function addOverride(){const s=v('ovManual')||v('ovPick');if(!s)return toast('Choose or type an SSID',true);api('/api/override',{ssid:s,enabled:1}).then(ok=>{if(ok){$('ovManual').value='';$('ovPick').value='';}});}
 function setApNet(){api('/api/apnet',{net:v('apnet')});}
+function setHost(){const mac=v('hostMac')||v('hostPick');if(!mac)return toast('Pick or type a MAC',true);const name=v('hostName');if(!name)return toast('Name required',true);api('/api/host',{mac,name}).then(ok=>{if(ok){$('hostMac').value='';$('hostPick').value='';$('hostName').value='';}});}
 function sigPct(r){return Math.max(0,Math.min(100,Math.round((r+95)*100/60)));}
 function sig(r){return el('span',{},el('span',{class:'sig'},el('i',{style:'width:'+sigPct(r)+'%'})),el('span',{class:'mut small'},r+' dBm'));}
 const MODE_TEXT={waiting:'No networks selected — waiting for a selection.',countdown:'Auto-connect to the strongest selected network in',connecting:'Joining',routing:'Routing AP clients via',retry:'Looking for a selected network…',hold:'Disconnected by user. Press Connect now to resume.',override:'Over-ride SSID in range — NAT disabled.'};
@@ -155,6 +169,11 @@ function render(s){
   const pick=$('ovPick');const cur=pick.value;pick.innerHTML='';pick.append(el('option',{value:''},'Pick from scan…'));
   for(const n of s.scan){if(!s.overrides.find(o=>o.ssid===n.ssid))pick.append(el('option',{value:n.ssid},n.ssid));}
   pick.value=cur;
+  const h=s.host||{},cls=$('hostNow');cls.className='alert '+(h.mac?(h.connected?'ok':'warn'):'');
+  cls.textContent=h.mac?(h.name+' - '+h.mac+(h.connected?' - connected':' - not connected')):'No named host set.';
+  const hp=$('hostPick'),hcur=hp.value;hp.innerHTML='';hp.append(el('option',{value:''},'Pick a connected device...'));
+  for(const c of (s.ap.clientList||[]))hp.append(el('option',{value:c.mac},c.mac+(c.ip?' ('+c.ip+')':'')));
+  hp.value=hcur;
   if(document.activeElement!==$('apnet')&&!$('apnet').value)$('apnet').value=s.ap.net;
   $('foot').textContent='Uptime '+Math.floor(s.uptime/60)+' min · free heap '+Math.round(s.heap/1024)+' KB';
 }

@@ -19,8 +19,6 @@ void start() {}
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_st7789.h"
 #include "esp_log.h"
-#include "esp_wifi.h"
-#include "esp_wifi_ap_get_sta_list.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -81,23 +79,24 @@ static void fillRect(int x, int y, int w, int h, uint16_t c) {
   if (y < 0) { h += y; y = 0; }
   if (x + w > LCD_W) w = LCD_W - x;
   if (y + h > LCD_H) h = LCD_H - y;
+  if (w <= 0 || h <= 0) return;
   for (int j = 0; j < h; j++) {
     uint16_t* row = s_fb + (y + j) * LCD_W + x;
     for (int i = 0; i < w; i++) row[i] = c;
   }
 }
 
+static inline void pixel(int x, int y, uint16_t c) {
+  if (x >= 0 && x < LCD_W && y >= 0 && y < LCD_H) s_fb[y * LCD_W + x] = c;
+}
+
 static void glyph(int x, int y, const Font& f, uint16_t c, char ch) {
   if (ch < 32 || ch > 126) ch = '?';
   const uint8_t* g = f.data + (ch - 32) * f.height * f.rowBytes;
   for (int j = 0; j < f.height; j++) {
-    int py = y + j;
-    if (py < 0 || py >= LCD_H) continue;
     const uint8_t* row = g + j * f.rowBytes;
     for (int i = 0; i < f.width; i++) {
-      int px = x + i;
-      if (px < 0 || px >= LCD_W) continue;
-      if (row[i >> 3] & (0x80 >> (i & 7))) s_fb[py * LCD_W + px] = c;
+      if (row[i >> 3] & (0x80 >> (i & 7))) pixel(x + i, y + j, c);
     }
   }
 }
@@ -114,9 +113,54 @@ static int text(int x, int y, const Font& f, uint16_t c, const std::string& s, i
   return x;
 }
 
-static int textRight(int right, int y, const Font& f, uint16_t c, const std::string& s) {
-  int x = right - (int)s.size() * f.width;
-  return text(x, y, f, c, s);
+static int textW(const Font& f, const std::string& s) { return (int)s.size() * f.width; }
+
+static void textCentre(int cx, int y, const Font& f, uint16_t c, const std::string& s, int maxChars = 0) {
+  std::string t = (maxChars && (int)s.size() > maxChars) ? s.substr(0, maxChars) : s;
+  text(cx - textW(f, t) / 2, y, f, c, t);
+}
+
+// Largest font that fits s in w px (falls back to the small one, then clipping).
+static const Font& fitFont(const std::string& s, int w) {
+  return textW(FONT_LARGE, s) <= w ? FONT_LARGE : FONT_SMALL;
+}
+
+// Filled triangle on a flat base of width w centred at cx; apex h away.
+// dir -1 = apex above the base, +1 = apex below.
+static void triangle(int cx, int baseY, int w, int h, int dir, uint16_t c) {
+  for (int j = 0; j < h; j++) {
+    int half = (w / 2) - (w / 2) * j / h;
+    fillRect(cx - half, baseY + dir * j, half * 2 + 1, 1, c);
+  }
+}
+
+// Down / up arrow: a stem with a solid head, total w x h.
+static void arrow(int x, int y, int w, int h, bool down, uint16_t c) {
+  int cx = x + w / 2;
+  int head = h / 2;
+  int stem = w / 3;
+  if (down) {
+    fillRect(cx - stem / 2, y, stem, h - head, c);
+    triangle(cx, y + h - head, w, head, +1, c);
+  } else {
+    fillRect(cx - stem / 2, y + head, stem, h - head, c);
+    triangle(cx, y + head, w, head, -1, c);
+  }
+}
+
+// "No internet": a ring with a diagonal bar through it.
+static void noEntry(int x, int y, int d, uint16_t c) {
+  int r = d / 2, cx = x + r, cy = y + r;
+  int inner = (r - 3) * (r - 3);
+  for (int dy = -r; dy <= r; dy++) {
+    for (int dx = -r; dx <= r; dx++) {
+      int rr = dx * dx + dy * dy;
+      if (rr <= r * r && rr >= inner) pixel(cx + dx, cy + dy, c);
+    }
+  }
+  for (int i = -r + 3; i <= r - 3; i++) {
+    for (int t = -1; t <= 1; t++) pixel(cx + i, cy + i + t, c);
+  }
 }
 
 static bool onTxDone(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t*, void*) {
@@ -227,133 +271,97 @@ static bool initPanel() {
 }
 
 // ---- Status page -------------------------------------------------------------------
-struct Client {
-  std::string mac;
-  std::string ip;
-};
+// Top half: what we are connected to and how fast (or why not).
+// Bottom half: whether the named host is on the AP.
+#define MID_Y 88
 
-static std::vector<Client> apClients() {
-  std::vector<Client> out;
-  wifi_sta_list_t stas = {};
-  if (esp_wifi_ap_get_sta_list(&stas) != ESP_OK) return out;
-  wifi_sta_mac_ip_list_t ips = {};
-  esp_wifi_ap_get_sta_list_with_ip(&stas, &ips);
-  for (int i = 0; i < stas.num; i++) {
-    char mac[18];
-    const uint8_t* m = stas.sta[i].mac;
-    snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
-    std::string ip = "(no lease)";
-    if (i < ips.num && ips.sta[i].ip.addr != 0) ip = ip4ToString(ips.sta[i].ip.addr);
-    out.push_back({mac, ip});
-  }
-  return out;
-}
-
-static void render(const StatusSnapshot& s, const std::vector<Client>& clients, const std::string& apIp) {
+static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
   fillRect(0, 0, LCD_W, LCD_H, C_BG);
+  const int cx = LCD_W / 2;
+  const int maxW = LCD_W - 8;
 
-  // Title bar: name left, mode badge right.
-  text(4, 2, FONT_SMALL, C_ACC, AP_SSID);
-  uint16_t modeCol = C_DIM;
-  std::string modeTxt = modeName(s.mode);
-  switch (s.mode) {
-    case Mode::ROUTING:    modeCol = C_OK; break;
-    case Mode::COUNTDOWN:  modeCol = C_WARN; modeTxt += " " + std::to_string((s.countdownMs + 999) / 1000) + "s"; break;
-    case Mode::CONNECTING:
-    case Mode::RETRY:      modeCol = C_WARN; break;
-    case Mode::OVERRIDE:
-    case Mode::HOLD:       modeCol = C_BAD; break;
-    default: break;
-  }
-  for (auto& ch : modeTxt) ch = toupper(ch);
-  int bw = (int)modeTxt.size() * FONT_SMALL.width + 8;
-  fillRect(LCD_W - bw - 2, 2, bw, FONT_SMALL.height, modeCol);
-  text(LCD_W - bw + 2, 2, FONT_SMALL, C_BG, modeTxt);
-  fillRect(0, 22, LCD_W, 1, C_LINE);
-
-  // Uplink block.
-  int y = 27;
-  if (s.staConnected) {
-    text(4, y, FONT_LARGE, C_FG, s.staSsid, (LCD_W - 8) / FONT_LARGE.width);
-    y += FONT_LARGE.height + 1;
-    char line[48];
-    snprintf(line, sizeof(line), "%s %ddBm", s.staIp.c_str(), s.staRssi);
-    text(4, y, FONT_SMALL, s.nat ? C_OK : C_WARN, line);
-    // Right-hand slot: speed test result, or NAT state when there isn't one.
-    speedtest::Result sp = speedtest::last();
-    if (!s.nat) {
-      textRight(LCD_W - 4, y, FONT_SMALL, C_WARN, "NAT off");
-    } else if (sp.running) {
-      textRight(LCD_W - 4, y, FONT_SMALL, C_WARN, "testing...");
-    } else if (sp.valid) {
-      char spd[32];
-      snprintf(spd, sizeof(spd), "D%.1f U%.1f Mb", sp.downMbps, sp.upMbps);
-      textRight(LCD_W - 4, y, FONT_SMALL, C_ACC, spd);
-    } else if (!sp.error.empty()) {
-      textRight(LCD_W - 4, y, FONT_SMALL, C_BAD, "test failed");
-    }
+  // ---------------- top half ----------------
+  if (!s.visibleOverride.empty()) {
+    textCentre(cx, 16, FONT_SMALL, C_BAD, "Over-ridden by");
+    const Font& f = fitFont(s.visibleOverride, maxW);
+    textCentre(cx, 44, f, C_FG, s.visibleOverride, maxW / f.width);
   } else {
-    std::string why;
-    switch (s.mode) {
-      case Mode::WAITING:    why = "no SSIDs selected"; break;
-      case Mode::COUNTDOWN:  why = "auto-connect pending"; break;
-      case Mode::CONNECTING: why = "joining " + s.target; break;
-      case Mode::RETRY:      why = "looking for uplink"; break;
-      case Mode::HOLD:       why = "disconnected by user"; break;
-      case Mode::OVERRIDE:   why = "override: " + s.visibleOverride; break;
-      default: break;
-    }
-    text(4, y, FONT_LARGE, C_DIM, "No uplink");
-    y += FONT_LARGE.height + 1;
-    text(4, y, FONT_SMALL, C_DIM, why, (LCD_W - 8) / FONT_SMALL.width);
-  }
-  y += FONT_SMALL.height + 3;
-  fillRect(0, y, LCD_W, 1, C_LINE);
-  y += 4;
+    textCentre(cx, 8, FONT_SMALL, C_DIM, "Connected to:");
+    std::string ssid = s.staConnected ? s.staSsid : "Not connected";
+    const Font& f = fitFont(ssid, maxW);
+    textCentre(cx, 28, f, s.staConnected ? C_FG : C_DIM, ssid, maxW / f.width);
 
-  // Clients block.
-  char hdr[48];
-  snprintf(hdr, sizeof(hdr), "Clients: %d", (int)clients.size());
-  text(4, y, FONT_SMALL, C_FG, hdr);
-  textRight(LCD_W - 4, y, FONT_SMALL, C_DIM, apIp);
-  y += FONT_SMALL.height + 1;
-
-  int rows = (LCD_H - y) / FONT_SMALL.height;
-  if (clients.empty()) {
-    text(4, y, FONT_SMALL, C_DIM, "none connected");
-  }
-  for (size_t i = 0; i < clients.size() && (int)i < rows; i++) {
-    if ((int)i == rows - 1 && clients.size() > (size_t)rows) {
-      char more[32];
-      snprintf(more, sizeof(more), "+%d more", (int)(clients.size() - rows + 1));
-      text(4, y, FONT_SMALL, C_DIM, more);
-      break;
+    const int y = 60;
+    bool online = s.staConnected && s.nat;
+    if (online && sp.valid) {
+      char dn[16], up[16];
+      snprintf(dn, sizeof(dn), "%.1f", sp.downMbps);
+      snprintf(up, sizeof(up), "%.1f", sp.upMbps);
+      const int aw = 14, ah = 22, gap = 24;
+      int blockD = aw + 5 + textW(FONT_LARGE, dn);
+      int blockU = aw + 5 + textW(FONT_LARGE, up);
+      int x = cx - (blockD + gap + blockU) / 2;
+      arrow(x, y, aw, ah, true, C_OK);
+      text(x + aw + 5, y - 3, FONT_LARGE, C_FG, dn);
+      x += blockD + gap;
+      arrow(x, y, aw, ah, false, C_ACC);
+      text(x + aw + 5, y - 3, FONT_LARGE, C_FG, up);
+    } else if (online && sp.running) {
+      textCentre(cx, y - 3, FONT_LARGE, C_WARN, "Testing...");
+    } else {
+      const int d = 24;
+      std::string msg = "No Internet";
+      int total = d + 8 + textW(FONT_LARGE, msg);
+      int x = cx - total / 2;
+      noEntry(x, y - 1, d, C_BAD);
+      text(x + d + 8, y - 3, FONT_LARGE, C_BAD, msg);
     }
-    text(4, y, FONT_SMALL, C_FG, clients[i].ip);
-    textRight(LCD_W - 4, y, FONT_SMALL, C_DIM, clients[i].mac);
-    y += FONT_SMALL.height;
   }
+
+  // ---------------- bottom half ----------------
+  fillRect(0, MID_Y, LCD_W, 1, C_LINE);
+
+  appLock();
+  std::string hostMac = store.hostMac(), hostName = store.hostName();
+  appUnlock();
+
+  if (hostMac.empty()) {
+    textCentre(cx, 120, FONT_SMALL, C_DIM, "No named host set");
+    return;
+  }
+  bool here = false;
+  std::string hostIp;
+  for (const auto& c : s.clients) {
+    if (c.mac == hostMac) {
+      here = true;
+      hostIp = c.ip;
+    }
+  }
+  std::string line = hostName + (here ? " Connected" : " Not Connected");
+  const Font& hf = fitFont(line, maxW);
+  textCentre(cx, here ? 106 : 112, hf, here ? C_OK : C_DIM, line, maxW / hf.width);
+  if (here) textCentre(cx, 140, FONT_SMALL, C_DIM, hostIp.empty() ? hostMac : hostIp);
 }
 
 static void displayTask(void*) {
-  std::string apIp = ip4ToString(store.apIp());
   std::string lastKey;
   int64_t lastFlush = 0;
   for (;;) {
     StatusSnapshot s = app::snapshot();
-    std::vector<Client> clients = apClients();
+    speedtest::Result sp = speedtest::last();
 
     // Only redraw when something visible changed (or every 10 s regardless).
-    std::string key = std::string(modeName(s.mode)) + "|" + s.staSsid + "|" + s.staIp + "|" + std::to_string(s.staRssi / 3) +
-                      "|" + (s.nat ? "1" : "0") + "|" + std::to_string((s.countdownMs + 999) / 1000) + "|" + s.target + "|" +
-                      s.visibleOverride;
-    for (auto& c : clients) key += "|" + c.mac + "=" + c.ip;
-    speedtest::Result sp = speedtest::last();
-    key += "|" + std::to_string(sp.running) + std::to_string(sp.valid) + std::to_string((int)(sp.downMbps * 10)) + "/" +
-           std::to_string((int)(sp.upMbps * 10)) + sp.error;
+    appLock();
+    std::string key = store.hostMac() + "/" + store.hostName();
+    appUnlock();
+    key += std::string(modeName(s.mode)) + "|" + s.staSsid + "|" + (s.nat ? "1" : "0") + "|" + s.visibleOverride + "|" +
+           std::to_string(sp.running) + std::to_string(sp.valid) + std::to_string((int)(sp.downMbps * 10)) + "/" +
+           std::to_string((int)(sp.upMbps * 10));
+    for (const auto& c : s.clients) key += "|" + c.mac + "=" + c.ip;
+
     int64_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
     if (key != lastKey || now - lastFlush > 10000) {
-      render(s, clients, apIp);
+      render(s, sp);
       flush();
       lastKey = key;
       lastFlush = now;
@@ -379,8 +387,8 @@ void start() {
   // Splash on a solid colour (so a driving fault and a backlight fault look
   // different), then backlight on so the first thing seen is a drawn frame.
   fillRect(0, 0, LCD_W, LCD_H, rgb(10, 40, 90));
-  text(4, 60, FONT_LARGE, C_FG, AP_SSID);
-  text(4, 95, FONT_SMALL, C_FG, "starting...");
+  textCentre(LCD_W / 2, 60, FONT_LARGE, C_FG, AP_SSID);
+  textCentre(LCD_W / 2, 95, FONT_SMALL, C_FG, "starting...");
   flush();
   backlight(BL_PERCENT);
   ESP_LOGI(TAG, "ST7789 %dx%d up", LCD_W, LCD_H);

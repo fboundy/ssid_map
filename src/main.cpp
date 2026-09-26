@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_wifi_ap_get_sta_list.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_heap_caps.h"
@@ -338,8 +340,20 @@ StatusSnapshot snapshot() {
       s.staRssi = rec.rssi;
     }
   }
-  wifi_sta_list_t list = {};
-  s.apClients = (esp_wifi_ap_get_sta_list(&list) == ESP_OK) ? list.num : 0;
+  wifi_sta_list_t stas = {};
+  if (esp_wifi_ap_get_sta_list(&stas) == ESP_OK && stas.num > 0) {
+    wifi_sta_mac_ip_list_t ips = {};
+    esp_wifi_ap_get_sta_list_with_ip(&stas, &ips);
+    for (int i = 0; i < stas.num; i++) {
+      char mac[18];
+      const uint8_t* m = stas.sta[i].mac;
+      snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
+      ApClient c;
+      c.mac = mac;
+      if (i < ips.num && ips.sta[i].ip.addr != 0) c.ip = ip4ToString(ips.sta[i].ip.addr);
+      s.clients.push_back(c);
+    }
+  }
   return s;
 }
 

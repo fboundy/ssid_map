@@ -16,6 +16,12 @@ enum class Mode {
 };
 const char* modeName(Mode m);
 
+// A station currently associated with our AP.
+struct ApClient {
+  std::string mac;  // lower-case aa:bb:cc:dd:ee:ff
+  std::string ip;   // DHCP lease, empty if none yet
+};
+
 struct ScanEntry {
   std::string ssid;
   int rssi;
@@ -37,7 +43,7 @@ struct StatusSnapshot {
   bool staConnected;
   std::string staSsid, staIp, staGw, staDns;
   int staRssi;
-  int apClients;
+  std::vector<ApClient> clients;
 };
 
 // The app lock guards the state machine, scan results and the NetworkStore.

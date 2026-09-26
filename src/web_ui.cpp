@@ -146,7 +146,14 @@ static esp_err_t handleStatus(httpd_req_t* req) {
   cJSON_AddStringToObject(ap, "ssid", AP_SSID);
   cJSON_AddStringToObject(ap, "ip", s_apIpStr.c_str());
   cJSON_AddStringToObject(ap, "net", apNet.c_str());
-  cJSON_AddNumberToObject(ap, "clients", s.apClients);
+  cJSON_AddNumberToObject(ap, "clients", (int)s.clients.size());
+  cJSON* cl = cJSON_AddArrayToObject(ap, "clientList");
+  for (const auto& c : s.clients) {
+    cJSON* o = cJSON_CreateObject();
+    cJSON_AddStringToObject(o, "mac", c.mac.c_str());
+    cJSON_AddStringToObject(o, "ip", c.ip.c_str());
+    cJSON_AddItemToArray(cl, o);
+  }
 
   cJSON* sta = cJSON_AddObjectToObject(root, "sta");
   cJSON_AddBoolToObject(sta, "connected", s.staConnected);
@@ -155,6 +162,18 @@ static esp_err_t handleStatus(httpd_req_t* req) {
   cJSON_AddStringToObject(sta, "gw", s.staGw.c_str());
   cJSON_AddStringToObject(sta, "dns", s.staDns.c_str());
   cJSON_AddNumberToObject(sta, "rssi", s.staRssi);
+
+  appLock();
+  std::string hostMac = store.hostMac(), hostName = store.hostName();
+  appUnlock();
+  bool hostHere = false;
+  for (const auto& c : s.clients) {
+    if (c.mac == hostMac) hostHere = true;
+  }
+  cJSON* host = cJSON_AddObjectToObject(root, "host");
+  cJSON_AddStringToObject(host, "mac", hostMac.c_str());
+  cJSON_AddStringToObject(host, "name", hostName.c_str());
+  cJSON_AddBoolToObject(host, "connected", hostHere);
 
   speedtest::Result st = speedtest::last();
   cJSON* sp = cJSON_AddObjectToObject(root, "speed");
@@ -244,6 +263,29 @@ static esp_err_t handleOverrideRemove(httpd_req_t* req) {
   return sendResult(req, true, "Removed over-ride " + f["ssid"]);
 }
 
+// One named host at a time: saving replaces whatever was there.
+static esp_err_t handleHost(httpd_req_t* req) {
+  std::map<std::string, std::string> f;
+  if (!readForm(req, f)) return sendResult(req, false, "Bad request");
+  std::string mac = trim(f["mac"]), name = trim(f["name"]);
+  if (mac.empty()) return sendResult(req, false, "MAC required");
+  if (name.empty()) return sendResult(req, false, "Name required");
+  appLock();
+  bool ok = store.setHost(mac, name);
+  std::string stored = store.hostMac();
+  appUnlock();
+  if (!ok) return sendResult(req, false, "Not a MAC address (aa:bb:cc:dd:ee:ff)");
+  return sendResult(req, true, "Named host set: " + name + " (" + stored + ")");
+}
+
+static esp_err_t handleHostRemove(httpd_req_t* req) {
+  appLock();
+  bool had = store.hasHost();
+  store.clearHost();
+  appUnlock();
+  return sendResult(req, had, had ? "Named host cleared" : "No named host set");
+}
+
 static esp_err_t handleApNet(httpd_req_t* req) {
   std::map<std::string, std::string> f;
   if (!readForm(req, f)) return sendResult(req, false, "Bad request");
@@ -317,6 +359,8 @@ void start(uint32_t apIp) {
       {.uri = "/api/override", .method = HTTP_POST, .handler = handleOverride, .user_ctx = nullptr},
       {.uri = "/api/override/remove", .method = HTTP_POST, .handler = handleOverrideRemove, .user_ctx = nullptr},
       {.uri = "/api/apnet", .method = HTTP_POST, .handler = handleApNet, .user_ctx = nullptr},
+      {.uri = "/api/host", .method = HTTP_POST, .handler = handleHost, .user_ctx = nullptr},
+      {.uri = "/api/host/remove", .method = HTTP_POST, .handler = handleHostRemove, .user_ctx = nullptr},
       {.uri = "/api/reboot", .method = HTTP_POST, .handler = handleReboot, .user_ctx = nullptr},
       {.uri = "/api/speedtest", .method = HTTP_POST, .handler = handleSpeedtest, .user_ctx = nullptr},
       // Registered last: wildcard catch-all for captive-portal probes.

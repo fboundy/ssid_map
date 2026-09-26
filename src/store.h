@@ -30,6 +30,13 @@ class NetworkStore {
   uint32_t apLeaseEnd() const { return hostInNet(AP_LEASE_OCTET + AP_LEASE_COUNT - 1); }
   bool setApNetwork(uint32_t net);  // takes effect after reboot
 
+  // --- named host (one at a time): a MAC we give a friendly name to ---
+  const std::string& hostMac() const { return _hostMac; }
+  const std::string& hostName() const { return _hostName; }
+  bool hasHost() const { return !_hostMac.empty(); }
+  bool setHost(const std::string& mac, const std::string& name);  // replaces any existing one
+  void clearHost();
+
   // --- over-rides ---
   int overrideCount() const { return _ovCount; }
   const Override& overrideAt(int i) const { return _ov[i]; }
@@ -55,6 +62,7 @@ class NetworkStore {
   Override _ov[MAX_OVERRIDES];
   int _ovCount = 0;
   uint32_t _apNet = 0;
+  std::string _hostMac, _hostName;
 };
 
 extern NetworkStore store;
