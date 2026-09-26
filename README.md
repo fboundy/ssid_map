@@ -64,10 +64,12 @@ something changes. No touch interaction.
 
 **Top half** — the uplink:
 
-* `Connected to:` above the SSID in large type, then the latest speed test as
-  a green down-arrow and a blue up-arrow with the two figures in Mbit/s.
-* No uplink, NAT off, or a failed test: the figures are replaced by a red
-  no-entry symbol and `No Internet`. While a test runs: `Testing...`.
+* Left: `Connected to:` above the SSID, set in the largest of four faces that
+  fits the column.
+* Right: the latest speed test as a green down-arrow and a blue up-arrow with
+  the figures in Mbit/s.
+* No uplink, NAT off, or a failed test: the right column becomes a red
+  no-entry symbol over `No Internet`. While a test runs: `Speed test...`.
 * If an enabled over-ride SSID is in range the whole half becomes
   `Over-ridden by` above that SSID, in red.
 
@@ -78,7 +80,10 @@ Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
 backlight 14 on LEDC PWM — from Waveshare's demo code), 35-px panel offset,
 vendor porch/VCOM/gamma tuning registers, framebuffer in PSRAM pushed through
 DMA bounce buffers. Text uses a bitmap font generated from Consolas by GDI+
-(`src/fonts.h`); arrows and the no-entry symbol are drawn as primitives.
+(`src/fonts.h`, regenerate with `pwsh tools/gen_font.ps1 -Out src/fonts.h`);
+arrows and the no-entry symbol are drawn as primitives.
+`tools/preview_lcd.py` renders the same layout to a PNG from `fonts.h`, so
+spacing can be checked without flashing.
 
 ### Speed test (`ws_touch_lcd_19` only, `-DXEBRO_SPEEDTEST`)
 
@@ -153,6 +158,7 @@ src/dns_proxy.*     captive / forwarding DNS task on UDP 53
 src/web_ui.*        esp_http_server routes + cJSON status
 src/page.h          the single-page UI (inline HTML/CSS/JS)
 src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
-src/fonts.h         generated 1-bit bitmap fonts (Consolas 16px / 24px bold)
+src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/24/36 px)
+tools/gen_font.ps1  regenerates fonts.h; tools/preview_lcd.py previews the LCD
 arduino/            previous Arduino-core implementation
 ```

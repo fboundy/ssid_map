@@ -120,9 +120,12 @@ static void textCentre(int cx, int y, const Font& f, uint16_t c, const std::stri
   text(cx - textW(f, t) / 2, y, f, c, t);
 }
 
-// Largest font that fits s in w px (falls back to the small one, then clipping).
+// Largest of the four faces that fits s in w px (then clipping).
 static const Font& fitFont(const std::string& s, int w) {
-  return textW(FONT_LARGE, s) <= w ? FONT_LARGE : FONT_SMALL;
+  if (textW(FONT_XL, s) <= w) return FONT_XL;
+  if (textW(FONT_LARGE, s) <= w) return FONT_LARGE;
+  if (textW(FONT_MED, s) <= w) return FONT_MED;
+  return FONT_SMALL;
 }
 
 // Filled triangle on a flat base of width w centred at cx; apex h away.
@@ -271,50 +274,54 @@ static bool initPanel() {
 }
 
 // ---- Status page -------------------------------------------------------------------
-// Top half: what we are connected to and how fast (or why not).
-// Bottom half: whether the named host is on the AP.
-#define MID_Y 88
+// Top half: the uplink SSID on the left, the speed test in a column on the
+// right. Bottom half: whether the named host is on the AP.
+#define MID_Y    88
+#define RIGHT_W  104
+#define RIGHT_X  (LCD_W - RIGHT_W)
+#define LEFT_X   6
+#define LEFT_W   (RIGHT_X - LEFT_X - 6)
+
+// One "arrow + figure" row of the speed column. Both rows start at the same
+// x so the arrows line up whatever the figures' widths.
+static void speedRow(int y, bool down, float mbps, uint16_t arrowCol) {
+  char val[16];
+  snprintf(val, sizeof(val), "%.1f", mbps);
+  const int aw = 14, ah = 22, x = RIGHT_X + 6;
+  arrow(x, y, aw, ah, down, arrowCol);
+  text(x + aw + 5, y - 3, FONT_LARGE, C_FG, val, (LCD_W - 4 - (x + aw + 5)) / FONT_LARGE.width);
+}
 
 static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
   fillRect(0, 0, LCD_W, LCD_H, C_BG);
   const int cx = LCD_W / 2;
-  const int maxW = LCD_W - 8;
+  const int rcx = RIGHT_X + RIGHT_W / 2;
 
   // ---------------- top half ----------------
   if (!s.visibleOverride.empty()) {
-    textCentre(cx, 16, FONT_SMALL, C_BAD, "Over-ridden by");
-    const Font& f = fitFont(s.visibleOverride, maxW);
-    textCentre(cx, 44, f, C_FG, s.visibleOverride, maxW / f.width);
+    // Over-ride takes the whole width: there is nothing to report speeds for.
+    textCentre(cx, 12, FONT_SMALL, C_BAD, "Over-ridden by");
+    const Font& f = fitFont(s.visibleOverride, LCD_W - 12);
+    textCentre(cx, 34, f, C_FG, s.visibleOverride, (LCD_W - 12) / f.width);
   } else {
-    textCentre(cx, 8, FONT_SMALL, C_DIM, "Connected to:");
+    text(LEFT_X, 8, FONT_SMALL, C_DIM, "Connected to:");
     std::string ssid = s.staConnected ? s.staSsid : "Not connected";
-    const Font& f = fitFont(ssid, maxW);
-    textCentre(cx, 28, f, s.staConnected ? C_FG : C_DIM, ssid, maxW / f.width);
+    const Font& f = fitFont(ssid, LEFT_W);
+    text(LEFT_X, 32, f, s.staConnected ? C_FG : C_DIM, ssid, LEFT_W / f.width);
 
-    const int y = 60;
     bool online = s.staConnected && s.nat;
     if (online && sp.valid) {
-      char dn[16], up[16];
-      snprintf(dn, sizeof(dn), "%.1f", sp.downMbps);
-      snprintf(up, sizeof(up), "%.1f", sp.upMbps);
-      const int aw = 14, ah = 22, gap = 24;
-      int blockD = aw + 5 + textW(FONT_LARGE, dn);
-      int blockU = aw + 5 + textW(FONT_LARGE, up);
-      int x = cx - (blockD + gap + blockU) / 2;
-      arrow(x, y, aw, ah, true, C_OK);
-      text(x + aw + 5, y - 3, FONT_LARGE, C_FG, dn);
-      x += blockD + gap;
-      arrow(x, y, aw, ah, false, C_ACC);
-      text(x + aw + 5, y - 3, FONT_LARGE, C_FG, up);
+      speedRow(10, true, sp.downMbps, C_OK);
+      speedRow(48, false, sp.upMbps, C_ACC);
     } else if (online && sp.running) {
-      textCentre(cx, y - 3, FONT_LARGE, C_WARN, "Testing...");
+      textCentre(rcx, 30, FONT_SMALL, C_WARN, "Speed");
+      textCentre(rcx, 50, FONT_SMALL, C_WARN, "test...");
     } else {
-      const int d = 24;
-      std::string msg = "No Internet";
-      int total = d + 8 + textW(FONT_LARGE, msg);
-      int x = cx - total / 2;
-      noEntry(x, y - 1, d, C_BAD);
-      text(x + d + 8, y - 3, FONT_LARGE, C_BAD, msg);
+      // Two lines so the words stay clear of the screen edge.
+      const int d = 28;
+      noEntry(rcx - d / 2, 6, d, C_BAD);
+      textCentre(rcx, 40, FONT_SMALL, C_BAD, "No");
+      textCentre(rcx, 60, FONT_SMALL, C_BAD, "Internet");
     }
   }
 
@@ -338,9 +345,12 @@ static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
     }
   }
   std::string line = hostName + (here ? " Connected" : " Not Connected");
-  const Font& hf = fitFont(line, maxW);
-  textCentre(cx, here ? 106 : 112, hf, here ? C_OK : C_DIM, line, maxW / hf.width);
-  if (here) textCentre(cx, 140, FONT_SMALL, C_DIM, hostIp.empty() ? hostMac : hostIp);
+  const Font& hf = fitFont(line, LCD_W - 12);
+  int y = here ? 98 : 110;
+  textCentre(cx, y, hf, here ? C_OK : C_DIM, line, (LCD_W - 12) / hf.width);
+  if (here && y + hf.height + 2 < LCD_H - FONT_SMALL.height) {
+    textCentre(cx, y + hf.height + 2, FONT_SMALL, C_DIM, hostIp.empty() ? hostMac : hostIp);
+  }
 }
 
 static void displayTask(void*) {
