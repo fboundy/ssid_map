@@ -152,6 +152,12 @@ Notes for this Windows machine:
   has `tool-scons.package-version` changed to `4.41101.0` (original saved as
   `platform.json.orig`).
 
+## Enclosure
+
+[hardware/bezel/](hardware/bezel/) has a parametric two-part 3D-printed bezel
+that mounts the Waveshare board into a flat panel behind a 2 mm protective
+sheet, with STLs, a panel-cutout DXF and the module's dimensions.
+
 ## Layout
 
 ```
@@ -167,5 +173,6 @@ src/page.h          the single-page UI (inline HTML/CSS/JS)
 src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
 src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/22/36 px)
 tools/gen_font.ps1  regenerates fonts.h; tools/preview_lcd.py previews the LCD
+hardware/bezel/     panel-mount bezel: OpenSCAD source, STLs, cutout DXF
 arduino/            previous Arduino-core implementation
 ```
