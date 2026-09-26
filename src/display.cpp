@@ -166,6 +166,27 @@ static void noEntry(int x, int y, int d, uint16_t c) {
   }
 }
 
+// Thick line between two points (Bresenham with a square nib).
+static void thickLine(int x0, int y0, int x1, int y1, int t, uint16_t c) {
+  int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  int err = dx + dy;
+  for (;;) {
+    fillRect(x0 - t / 2, y0 - t / 2, t, t, c);
+    if (x0 == x1 && y0 == y1) break;
+    int e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+// Check mark filling a d x d box.
+static void tick(int x, int y, int d, uint16_t c) {
+  int t = d / 7 + 2;
+  thickLine(x + d / 8, y + d / 2, x + d * 2 / 5, y + d * 4 / 5, t, c);
+  thickLine(x + d * 2 / 5, y + d * 4 / 5, x + d * 7 / 8, y + d / 6, t, c);
+}
+
 static bool onTxDone(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t*, void*) {
   BaseType_t woken = pdFALSE;
   xSemaphoreGiveFromISR(s_txDone, &woken);
@@ -277,6 +298,7 @@ static bool initPanel() {
 // Top half: the uplink SSID on the left, the speed test in a column on the
 // right. Bottom half: whether the named host is on the AP.
 #define MID_Y    88
+#define BOT_Y    90  // top of the bottom half; mirrors the top half's offsets
 #define RIGHT_W  104
 #define RIGHT_X  (LCD_W - RIGHT_W)
 #define LEFT_X   6
@@ -297,14 +319,14 @@ static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
   const int cx = LCD_W / 2;
   const int rcx = RIGHT_X + RIGHT_W / 2;
 
-  // ---------------- top half ----------------
+  // ---------------- top half: the internet uplink ----------------
   if (!s.visibleOverride.empty()) {
     // Over-ride takes the whole width: there is nothing to report speeds for.
-    textCentre(cx, 12, FONT_SMALL, C_BAD, "Over-ridden by");
+    text(LEFT_X, 8, FONT_SMALL, C_BAD, "Over-ridden by:");
     const Font& f = fitFont(s.visibleOverride, LCD_W - 12);
-    textCentre(cx, 34, f, C_FG, s.visibleOverride, (LCD_W - 12) / f.width);
+    text(LEFT_X, 32, f, C_FG, s.visibleOverride, (LCD_W - 12) / f.width);
   } else {
-    text(LEFT_X, 8, FONT_SMALL, C_DIM, "Connected to:");
+    text(LEFT_X, 8, FONT_SMALL, C_DIM, "Internet Connection:");
     std::string ssid = s.staConnected ? s.staSsid : "Not connected";
     const Font& f = fitFont(ssid, LEFT_W);
     text(LEFT_X, 32, f, s.staConnected ? C_FG : C_DIM, ssid, LEFT_W / f.width);
@@ -325,31 +347,35 @@ static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
     }
   }
 
-  // ---------------- bottom half ----------------
   fillRect(0, MID_Y, LCD_W, 1, C_LINE);
 
+  // ---------------- bottom half: the named device, laid out the same ----------------
   appLock();
   std::string hostMac = store.hostMac(), hostName = store.hostName();
   appUnlock();
 
+  text(LEFT_X, BOT_Y + 8, FONT_SMALL, C_DIM, "Device Connection:");
   if (hostMac.empty()) {
-    textCentre(cx, 120, FONT_SMALL, C_DIM, "No named host set");
+    const Font& f = fitFont("None set", LEFT_W);
+    text(LEFT_X, BOT_Y + 32, f, C_DIM, "None set");
     return;
   }
+
   bool here = false;
-  std::string hostIp;
   for (const auto& c : s.clients) {
-    if (c.mac == hostMac) {
-      here = true;
-      hostIp = c.ip;
-    }
+    if (c.mac == hostMac) here = true;
   }
-  std::string line = hostName + (here ? " Connected" : " Not Connected");
-  const Font& hf = fitFont(line, LCD_W - 12);
-  int y = here ? 98 : 110;
-  textCentre(cx, y, hf, here ? C_OK : C_DIM, line, (LCD_W - 12) / hf.width);
-  if (here && y + hf.height + 2 < LCD_H - FONT_SMALL.height) {
-    textCentre(cx, y + hf.height + 2, FONT_SMALL, C_DIM, hostIp.empty() ? hostMac : hostIp);
+  const Font& hf = fitFont(hostName, LEFT_W);
+  text(LEFT_X, BOT_Y + 32, hf, here ? C_FG : C_DIM, hostName, LEFT_W / hf.width);
+
+  const int d = 28;
+  if (here) {
+    tick(rcx - d / 2, BOT_Y + 6, d, C_OK);
+    textCentre(rcx, BOT_Y + 40, FONT_SMALL, C_OK, "Connected");
+  } else {
+    noEntry(rcx - d / 2, BOT_Y + 6, d, C_BAD);
+    textCentre(rcx, BOT_Y + 40, FONT_SMALL, C_BAD, "Not");
+    textCentre(rcx, BOT_Y + 58, FONT_SMALL, C_BAD, "Connected");
   }
 }
 

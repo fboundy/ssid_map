@@ -4,7 +4,7 @@ import re, sys
 from PIL import Image, ImageDraw
 
 W, H = 320, 170
-MID_Y, RIGHT_W = 88, 104
+MID_Y, RIGHT_W, BOT_Y = 88, 104, 90
 RIGHT_X = W - RIGHT_W
 LEFT_X = 6
 LEFT_W = RIGHT_X - LEFT_X - 6
@@ -67,6 +67,22 @@ def arrow(d, x, y, w, h, down, col):
             half = (w // 2) - (w // 2) * j // head
             d.rectangle([cx - half, base - j, cx + half, base - j], fill=col)
 
+def thick_line(d, x0, y0, x1, y1, t, col):
+    dx = abs(x1 - x0); sx = 1 if x0 < x1 else -1
+    dy = -abs(y1 - y0); sy = 1 if y0 < y1 else -1
+    err = dx + dy
+    while True:
+        d.rectangle([x0 - t // 2, y0 - t // 2, x0 - t // 2 + t - 1, y0 - t // 2 + t - 1], fill=col)
+        if x0 == x1 and y0 == y1: break
+        e2 = 2 * err
+        if e2 >= dy: err += dy; x0 += sx
+        if e2 <= dx: err += dx; y0 += sy
+
+def tick(d, x, y, dia, col):
+    t = dia // 7 + 2
+    thick_line(d, x + dia // 8, y + dia // 2, x + dia * 2 // 5, y + dia * 4 // 5, t, col)
+    thick_line(d, x + dia * 2 // 5, y + dia * 4 // 5, x + dia * 7 // 8, y + dia // 6, t, col)
+
 def no_entry(px, x, y, dia, col):
     r = dia // 2; cx, cy = x + r, y + r; inner = (r - 3) ** 2
     for dy in range(-r, r + 1):
@@ -80,23 +96,22 @@ def no_entry(px, x, y, dia, col):
 
 def render(ssid, connected, nat, down, up, valid, running, override, host, host_here):
     img = Image.new("RGB", (W, H), C_BG); px = img.load(); d = ImageDraw.Draw(img)
-    cx = W // 2; rcx = RIGHT_X + RIGHT_W // 2
+    rcx = RIGHT_X + RIGHT_W // 2
     if override:
-        centre(px, cx, 12, SMALL, C_BAD, "Over-ridden by")
+        text(px, LEFT_X, 8, SMALL, C_BAD, "Over-ridden by:")
         f = fit(override, W - 12)
-        centre(px, cx, 34, f, C_FG, override, (W - 12) // f["w"])
+        text(px, LEFT_X, 32, f, C_FG, override, (W - 12) // f["w"])
     else:
-        text(px, LEFT_X, 8, SMALL, C_DIM, "Connected to:")
+        text(px, LEFT_X, 8, SMALL, C_DIM, "Internet Connection:")
         s = ssid if connected else "Not connected"
         f = fit(s, LEFT_W)
         text(px, LEFT_X, 32, f, C_FG if connected else C_DIM, s, LEFT_W // f["w"])
         online = connected and nat
         if online and valid:
             for y, dn, v, col in ((10, True, down, C_OK), (48, False, up, C_ACC)):
-                val = "%.1f" % v
                 x = RIGHT_X + 6
                 arrow(d, x, y, 14, 22, dn, col)
-                text(px, x + 14 + 5, y - 3, LARGE, C_FG, val)
+                text(px, x + 19, y - 3, LARGE, C_FG, "%.1f" % v)
         elif online and running:
             centre(px, rcx, 30, SMALL, C_WARN, "Speed")
             centre(px, rcx, 50, SMALL, C_WARN, "test...")
@@ -105,15 +120,20 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
             centre(px, rcx, 40, SMALL, C_BAD, "No")
             centre(px, rcx, 60, SMALL, C_BAD, "Internet")
     d.rectangle([0, MID_Y, W - 1, MID_Y], fill=C_LINE)
+
+    text(px, LEFT_X, BOT_Y + 8, SMALL, C_DIM, "Device Connection:")
     if not host:
-        centre(px, cx, 120, SMALL, C_DIM, "No named host set")
+        text(px, LEFT_X, BOT_Y + 32, fit("None set", LEFT_W), C_DIM, "None set")
+        return img
+    hf = fit(host, LEFT_W)
+    text(px, LEFT_X, BOT_Y + 32, hf, C_FG if host_here else C_DIM, host, LEFT_W // hf["w"])
+    if host_here:
+        tick(d, rcx - 14, BOT_Y + 6, 28, C_OK)
+        centre(px, rcx, BOT_Y + 40, SMALL, C_OK, "Connected")
     else:
-        line = host + (" Connected" if host_here else " Not Connected")
-        hf = fit(line, W - 12)
-        y = 98 if host_here else 110
-        centre(px, cx, y, hf, C_OK if host_here else C_DIM, line, (W - 12) // hf["w"])
-        if host_here and y + hf["h"] + 2 < H - SMALL["h"]:
-            centre(px, cx, y + hf["h"] + 2, SMALL, C_DIM, "192.168.137.11")
+        no_entry(px, rcx - 14, BOT_Y + 6, 28, C_BAD)
+        centre(px, rcx, BOT_Y + 40, SMALL, C_BAD, "Not")
+        centre(px, rcx, BOT_Y + 58, SMALL, C_BAD, "Connected")
     return img
 
 cases = [

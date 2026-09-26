@@ -62,19 +62,25 @@ JSON API (form-encoded POSTs) lives under `/api/*`; see [src/web_ui.cpp](src/web
 Landscape 320×170, split in two. Refreshed once a second, redrawn only when
 something changes. No touch interaction.
 
-**Top half** — the uplink:
+Both halves share one layout: a small label and a large name on the left, a
+status block in a column on the right.
 
-* Left: `Connected to:` above the SSID, set in the largest of four faces that
-  fits the column.
+**Top half** — the internet uplink:
+
+* `Internet Connection:` above the SSID, set in the largest of four faces
+  that fits the column.
 * Right: the latest speed test as a green down-arrow and a blue up-arrow with
   the figures in Mbit/s.
 * No uplink, NAT off, or a failed test: the right column becomes a red
   no-entry symbol over `No Internet`. While a test runs: `Speed test...`.
 * If an enabled over-ride SSID is in range the whole half becomes
-  `Over-ridden by` above that SSID, in red.
+  `Over-ridden by:` above that SSID, in red.
 
-**Bottom half** — the named host: `<name> Connected` in green with its lease
-IP underneath, `<name> Not Connected` in grey, or `No named host set`.
+**Bottom half** — the named device:
+
+* `Device Connection:` above the device's name, or `None set`.
+* Right: a green tick over `Connected`, or a red no-entry symbol over
+  `Not Connected`.
 
 Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
 backlight 14 on LEDC PWM — from Waveshare's demo code), 35-px panel offset,
