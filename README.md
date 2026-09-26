@@ -70,7 +70,7 @@ status block in a column on the right.
 * `Internet Connection:` above the SSID, set in the largest of four faces
   that fits the column.
 * Right: the latest speed test as a green down-arrow and a blue up-arrow with
-  the figures in Mbit/s.
+  the two figures, under a shared `Mb/s` label.
 * No uplink, NAT off, or a failed test: the right column becomes a red
   no-entry symbol over `No Internet`. While a test runs: `Speed test...`.
 * If an enabled over-ride SSID is in range the whole half becomes

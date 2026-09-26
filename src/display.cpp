@@ -333,8 +333,9 @@ static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
 
     bool online = s.staConnected && s.nat;
     if (online && sp.valid) {
-      speedRow(10, true, sp.downMbps, C_OK);
-      speedRow(48, false, sp.upMbps, C_ACC);
+      speedRow(8, true, sp.downMbps, C_OK);
+      speedRow(38, false, sp.upMbps, C_ACC);
+      textCentre(rcx, 68, FONT_SMALL, C_DIM, "Mb/s");
     } else if (online && sp.running) {
       textCentre(rcx, 30, FONT_SMALL, C_WARN, "Speed");
       textCentre(rcx, 50, FONT_SMALL, C_WARN, "test...");

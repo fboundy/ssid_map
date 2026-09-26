@@ -108,10 +108,11 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
         text(px, LEFT_X, 32, f, C_FG if connected else C_DIM, s, LEFT_W // f["w"])
         online = connected and nat
         if online and valid:
-            for y, dn, v, col in ((10, True, down, C_OK), (48, False, up, C_ACC)):
+            for y, dn, v, col in ((8, True, down, C_OK), (38, False, up, C_ACC)):
                 x = RIGHT_X + 6
                 arrow(d, x, y, 14, 22, dn, col)
                 text(px, x + 19, y - 3, LARGE, C_FG, "%.1f" % v)
+            centre(px, rcx, 68, SMALL, C_DIM, "Mb/s")
         elif online and running:
             centre(px, rcx, 30, SMALL, C_WARN, "Speed")
             centre(px, rcx, 50, SMALL, C_WARN, "test...")
