@@ -62,7 +62,7 @@ $hdr = New-Object System.Text.StringBuilder
 [void]$hdr.AppendLine("")
 [void]$hdr.Append((Gen-Font "FONT_SMALL" "Consolas" 16 ([System.Drawing.FontStyle]::Regular)))
 [void]$hdr.Append((Gen-Font "FONT_MED"   "Consolas" 20 ([System.Drawing.FontStyle]::Bold)))
-[void]$hdr.Append((Gen-Font "FONT_LARGE" "Consolas" 24 ([System.Drawing.FontStyle]::Bold)))
+[void]$hdr.Append((Gen-Font "FONT_LARGE" "Consolas" 22 ([System.Drawing.FontStyle]::Bold)))
 [void]$hdr.Append((Gen-Font "FONT_XL"    "Consolas" 36 ([System.Drawing.FontStyle]::Bold)))
 [System.IO.File]::WriteAllText($Out, $hdr.ToString(), (New-Object System.Text.UTF8Encoding($false)))
 Write-Output "wrote $Out"

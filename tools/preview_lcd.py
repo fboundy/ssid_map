@@ -4,10 +4,10 @@ import re, sys
 from PIL import Image, ImageDraw
 
 W, H = 320, 170
-MID_Y, RIGHT_W, BOT_Y = 88, 104, 90
+MID_Y, RIGHT_W, BOT_Y = 88, 96, 90
 RIGHT_X = W - RIGHT_W
-LEFT_X = 6
-LEFT_W = RIGHT_X - LEFT_X - 6
+LEFT_X = 5
+LEFT_W = RIGHT_X - LEFT_X - 5
 
 src = open(r"C:\Users\FrancisBoundy\Documents\GitHub\ssid_map\src\fonts.h").read()
 
@@ -109,7 +109,7 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
         online = connected and nat
         if online and valid:
             for y, dn, v, col in ((8, True, down, C_OK), (38, False, up, C_ACC)):
-                x = RIGHT_X + 6
+                x = RIGHT_X + 4
                 arrow(d, x, y, 14, 22, dn, col)
                 text(px, x + 19, y - 3, LARGE, C_FG, "%.1f" % v)
             centre(px, rcx, 68, SMALL, C_DIM, "Mb/s")
@@ -138,6 +138,7 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
     return img
 
 cases = [
+    ("long-16ch",   dict(ssid="Vehicle Mobile 1", connected=1, nat=1, down=23.9, up=18.5, valid=1, running=0, override="", host="Vehicle Mobile 1", host_here=1)),
     ("routing-short",  dict(ssid="Dlink12", connected=1, nat=1, down=23.9, up=18.5, valid=1, running=0, override="", host="Laptop", host_here=1)),
     ("routing-long",   dict(ssid="ToppinFibrus", connected=1, nat=1, down=123.4, up=9.8, valid=1, running=0, override="", host="Francis Laptop", host_here=1)),
     ("no-internet",    dict(ssid="ToppinHouseGuest", connected=1, nat=0, down=0, up=0, valid=0, running=0, override="", host="Laptop", host_here=0)),

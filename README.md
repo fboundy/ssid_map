@@ -68,7 +68,8 @@ status block in a column on the right.
 **Top half** — the internet uplink:
 
 * `Internet Connection:` above the SSID, set in the largest of four faces
-  that fits the column.
+  (36/22/20/16 px) that fits the 214 px column - a 16-character SSID such as
+  "Vehicle Mobile 1" still gets the 22 px face.
 * Right: the latest speed test as a green down-arrow and a blue up-arrow with
   the two figures, under a shared `Mb/s` label.
 * No uplink, NAT off, or a failed test: the right column becomes a red
@@ -164,7 +165,7 @@ src/dns_proxy.*     captive / forwarding DNS task on UDP 53
 src/web_ui.*        esp_http_server routes + cJSON status
 src/page.h          the single-page UI (inline HTML/CSS/JS)
 src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
-src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/24/36 px)
+src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/22/36 px)
 tools/gen_font.ps1  regenerates fonts.h; tools/preview_lcd.py previews the LCD
 arduino/            previous Arduino-core implementation
 ```

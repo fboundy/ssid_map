@@ -299,17 +299,18 @@ static bool initPanel() {
 // right. Bottom half: whether the named host is on the AP.
 #define MID_Y    88
 #define BOT_Y    90  // top of the bottom half; mirrors the top half's offsets
-#define RIGHT_W  104
+#define RIGHT_W  96   // fits "Connected" (81 px) and the speed block
 #define RIGHT_X  (LCD_W - RIGHT_W)
-#define LEFT_X   6
-#define LEFT_W   (RIGHT_X - LEFT_X - 6)
+#define LEFT_X   5
+// Wide enough for a 16-character SSID ("Vehicle Mobile 1") in FONT_LARGE.
+#define LEFT_W   (RIGHT_X - LEFT_X - 5)
 
 // One "arrow + figure" row of the speed column. Both rows start at the same
 // x so the arrows line up whatever the figures' widths.
 static void speedRow(int y, bool down, float mbps, uint16_t arrowCol) {
   char val[16];
   snprintf(val, sizeof(val), "%.1f", mbps);
-  const int aw = 14, ah = 22, x = RIGHT_X + 6;
+  const int aw = 14, ah = 22, x = RIGHT_X + 4;
   arrow(x, y, aw, ah, down, arrowCol);
   text(x + aw + 5, y - 3, FONT_LARGE, C_FG, val, (LCD_W - 4 - (x + aw + 5)) / FONT_LARGE.width);
 }
