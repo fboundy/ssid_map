@@ -49,9 +49,9 @@ d_pins       = 17.50;   // glass front face -> tips of the header pins (measured
 // the window is cut to the aperture so the bezel edge lands on the mask edge.
 va_w         = 44.70;   // (measured)
 va_h         = 24.30;   // (measured)
-// The aperture is not centred on the glass. +x is towards the end AWAY from
-// the USB-C socket. Scaled off the Waveshare front view; confirm by measuring
-// the two side margins between the glass edge and the clear aperture.
+// The aperture is not centred on the glass: it sits 1.9 mm towards the end
+// AWAY from the USB-C socket (+x here), so the wide black border is at the
+// USB end. Confirmed against the board.
 va_off_x     =  1.90;
 va_off_y     =  0.00;
 
@@ -144,6 +144,17 @@ module at_screws() {
     for (sx = [-1, 1], sy = [-1, 1]) translate([sx*screw_x, sy*screw_y, 0]) children();
 }
 
+// Both parts are handed - the window is offset and the ribs are not
+// symmetric - so mark the end the USB-C socket goes to. Debossed into the
+// back face, where it is hidden once assembled.
+mark_depth = 0.6;
+module usb_mark(z_face) {
+    translate([-screw_x, 0, z_face - mark_depth])
+        linear_extrude(mark_depth + eps)
+            rotate([0, 0, 90])
+                text("USB", size=4.5, halign="center", valign="center");
+}
+
 // ---- front part ----------------------------------------------------------
 module front() {
     difference() {
@@ -170,6 +181,7 @@ module front() {
             rrect(pocket_w, pocket_h, pocket_r, face_t + panel_t - z_glass + 2*eps);
 
         at_screws() csk(0, face_t);
+        usb_mark(face_t);
     }
 }
 
@@ -202,6 +214,7 @@ module back() {
             rrect(aperture_w, aperture_h, pocket_r, back_t + 2*eps);
         at_screws() translate([0, 0, z_panel_bk - eps])
             cylinder(d=screw_pilot, h=back_t + boss_len + 2*eps);
+        usb_mark(z_plate_bk);
     }
 }
 

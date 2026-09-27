@@ -43,25 +43,29 @@ Cut the 1 mm sheet to **56.1 × 32.4 mm**. It drops into the front bezel behind
 the window and the module's cover glass presses against it. The pocket is
 56.6 × 32.9, so it is a slip fit — file the corners to roughly R1.25.
 
-## The window is deliberately off-centre
+## Both parts are handed
 
-The clear aperture in the glass is **not centred on the glass**: it sits about
-1.9 mm towards the end away from the USB-C socket, leaving roughly 7.1 mm of
-black border at the USB end and 3.3 mm at the other. The window is cut
-45.1 × 24.7 and shifted to match (`va_off_x` in `bezel.scad`).
+The clear aperture is **not centred on the glass**: it sits 1.9 mm towards the
+end away from the USB-C socket, so the black border is about **7.1 mm wide at
+the USB end** and 3.3 mm at the other (confirmed on the board). The window is
+cut 45.1 × 24.7 and shifted to match, and the back clamp's ribs are likewise
+offset to miss the buttons at the USB end.
 
-**Check this before printing.** Hold the board screen-up: the black border
-should be visibly wider at the USB end. If it is wider at the *other* end,
-change `va_off_x` to `-1.90` and re-export the front part.
+So both parts only fit one way round. Each has **`USB` debossed on its back
+face** at the end the socket goes to — check it lines up with the board before
+you drive the screws. `va_off_x` in `bezel.scad` flips the window if ever
+needed.
 
 ## Assembly
 
 1. Drop the protective sheet into the back of the front bezel.
-2. Lay the module in behind it, glass first, into the 55.6 × 31.9 pocket.
-   The 2 × 20 headers and the USB-C socket face away from you.
+2. Lay the module in behind it, glass first, into the 55.6 × 31.9 pocket,
+   with the USB-C socket at the end marked `USB`. The headers and the socket
+   face away from you.
 3. From the front of the panel, push the bezel's spigot through the cutout.
-4. From behind, slide the back clamp over the module — the two ribs go
-   either side of the PCB — until it sits flat on the panel.
+4. From behind, slide the back clamp over the module, `USB` mark to the same
+   end — the two ribs go either side of the PCB — until it sits flat on the
+   panel.
 5. Four **M3 × 16 countersunk** screws from the front, into the bosses on the
    back clamp. They self-tap into Ø2.6 pilot holes; drive them gently.
 
@@ -98,7 +102,8 @@ used — it is a clamp, not a screwed mount.
 * 0.2 mm layers, 3 perimeters, 30 % infill. PETG or ABS if it will sit in
   sunlight; PLA will creep under the screw preload if it gets warm.
 * Print both parts **face down** (the large flat face on the bed). No
-  supports needed — every overhang is a 2.5 mm rib or a boss.
+  supports needed — every overhang is a 2.5 mm rib or a boss. The `USB` mark
+  is a 0.6 mm recess in the upward face.
 * The window chamfer prints cleanly face down; it is the top surface.
 
 ## Source dimensions
