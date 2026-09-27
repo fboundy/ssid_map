@@ -27,30 +27,40 @@ part = "both";  // "front" | "back" | "both" | "assembly" | "section" | "cutout"
 
 /* [Your installation] */
 panel_t      = 3.0;     // panel thickness (see max_panel_t below)
-sheet_t      = 2.0;     // protective sheet thickness
+sheet_t      = 1.0;     // protective sheet thickness
 flange       = 10.0;    // overlap onto the panel, all round the cutout
 
 /* [Module: Waveshare ESP32-S3-Touch-LCD-1.9] */
-glass_w      = 55.00;   // cover glass, 4x R1.00
+// Measured on the board where noted; the rest from Waveshare's drawing.
+glass_w      = 55.10;   // cover glass, 4x R1.00                      (measured)
 glass_h      = 31.40;
 glass_r      = 1.00;
-glass_t      = 2.50;    // glass front face -> back of cover glass
+glass_t      = 2.54;    // glass front face -> back of cover glass    (measured)
 lcd_w        = 52.36;   // display module body behind the glass
 lcd_h        = 28.80;
 pcb_w        = 52.60;
 pcb_h        = 29.00;
 pcb_t        = 1.60;
-d_pcb_back   = 7.80;    // glass front face -> back of PCB
+d_pcb_back   = 7.83;    // glass front face -> back of PCB            (measured)
 d_comp_back  = 11.80;   // glass front face -> back of rear components
-va_w         = 43.12;   // active area, centred on the glass
-va_h         = 23.10;
+d_pins       = 17.50;   // glass front face -> tips of the header pins (measured)
+
+// Clear aperture in the glass mask, NOT the active pixel area (43.12 x 23.10):
+// the window is cut to the aperture so the bezel edge lands on the mask edge.
+va_w         = 44.70;   // (measured)
+va_h         = 24.30;   // (measured)
+// The aperture is not centred on the glass. +x is towards the end AWAY from
+// the USB-C socket. Scaled off the Waveshare front view; confirm by measuring
+// the two side margins between the glass edge and the clear aperture.
+va_off_x     =  1.90;
+va_off_y     =  0.00;
 
 /* [Fits and clearances] */
 glass_fit    = 0.25;    // per side, around the cover glass
 sheet_fit    = 0.25;    // per side, around the protective sheet
 sheet_over   = 0.50;    // sheet pocket larger than the glass pocket, per side
 cut_clr      = 0.25;    // per side, spigot to panel cutout
-win_margin   = 0.60;    // window opening beyond the active area, per side
+win_margin   = 0.20;    // window opening beyond the clear aperture, per side
 win_chamfer  = 1.20;    // 45 deg chamfer round the window on the front face
 side_clr     = 0.50;    // per side, rib legs to the PCB edge
 preload      = 0.30;    // ribs run this much proud, to take up the stack-up
@@ -144,9 +154,9 @@ module front() {
         }
 
         // viewing window, chamfered on the front face
-        translate([0, 0, -eps])
+        translate([va_off_x, va_off_y, -eps])
             rrect(va_w + 2*win_margin, va_h + 2*win_margin, 0.8, face_t + 2*eps);
-        translate([0, 0, -eps])
+        translate([va_off_x, va_off_y, -eps])
             linear_extrude(win_chamfer + eps, scale=[
                 (va_w + 2*win_margin) / (va_w + 2*win_margin + 2*win_chamfer),
                 (va_h + 2*win_margin) / (va_h + 2*win_margin + 2*win_chamfer)])
@@ -198,6 +208,8 @@ module back() {
 // ---- reference model of the module, for the assembly view ----------------
 module module_ref() {
     color("black")     translate([0, 0, z_glass]) rrect(glass_w, glass_h, glass_r, glass_t);
+    color("#3060a0")   translate([va_off_x, va_off_y, z_glass - 0.05])
+                           rrect(va_w, va_h, 0.5, 0.1);
     color("dimgray")   translate([0, 0, z_glass + glass_t])
                            rrect(lcd_w, lcd_h, 0.5, d_pcb_back - pcb_t - glass_t);
     color("darkgreen") translate([0, 0, z_pcb_bk - pcb_t]) rrect(pcb_w, pcb_h, 0.5, pcb_t);
@@ -251,5 +263,8 @@ echo(str("panel screw holes  : 4 x 3.4 mm at +/-", screw_x, ", +/-", screw_y));
 echo(str("bezel outer size   : ", body_w, " x ", body_h, " mm"));
 echo(str("cut the sheet to   : ", sheet_cut_w, " x ", sheet_cut_h, " mm"));
 echo(str("front part depth   : ", face_t + panel_t, " mm"));
-echo(str("total depth behind panel : ", z_comp_bk - z_panel_bk, " mm (plus header pins)"));
+echo(str("depth behind panel : ", z_comp_bk - z_panel_bk, " mm to components, ",
+         z_glass + d_pins - z_panel_bk, " mm to pin tips"));
+echo(str("window             : ", va_w + 2*win_margin, " x ", va_h + 2*win_margin,
+         " mm, offset ", va_off_x, ", ", va_off_y));
 echo(str("max panel_t        : ", max_panel_t, " mm"));

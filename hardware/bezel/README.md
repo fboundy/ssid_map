@@ -1,7 +1,7 @@
 # Panel-mount bezel — Waveshare ESP32-S3-Touch-LCD-1.9
 
 Two 3D-printed parts that mount the display module into a flat panel and
-sandwich it in place, with a 2 mm protective sheet over the screen.
+sandwich it in place, with a 1 mm protective sheet over the screen.
 
 | File | What it is |
 |---|---|
@@ -10,27 +10,28 @@ sandwich it in place, with a 2 mm protective sheet over the screen.
 | `back.stl` | back clamp (inside the panel) |
 | `panel_cutout.dxf` | the cutout and screw holes, for marking out or CNC |
 
-Printed as supplied: bezel is **79.5 × 55.9 mm**, standing **3 mm** proud of
-the panel, with **10.8 mm** behind it (plus the pin headers if fitted).
+Printed as supplied: bezel is **79.6 × 55.9 mm**, standing **3 mm** proud of
+the panel, with **9.8 mm** behind it to the rear components and **15.5 mm** to
+the tips of the pin headers.
 
 ## Panel preparation
 
 ```
-        79.5 wide bezel                            all dimensions mm
+        79.6 wide bezel                            all dimensions mm
    ┌─────────────────────────────────┐
-   │  ○                           ○  │   ○ = 3.4 dia, at ±34.75, ±22.95
+   │  ○                           ○  │   ○ = 3.4 dia, at ±34.8, ±22.95
    │     ┌───────────────────┐       │       (four, M3 clearance)
-   │     │   59.5 × 35.9     │       │   ▭ = cutout, R3.25 corners
+   │     │   59.6 × 35.9     │       │   ▭ = cutout, R3.25 corners
    │     │   cutout  R3.25   │       │
    │     └───────────────────┘       │
    │  ○                           ○  │
    └─────────────────────────────────┘
 ```
 
-* **Cutout 59.5 × 35.9 mm**, corner radius 3.25 (a 6 mm cutter is fine).
-* **Four Ø3.4 mm holes** on a 69.5 × 45.9 mm pattern, i.e. ±34.75, ±22.95
+* **Cutout 59.6 × 35.9 mm**, corner radius 3.25 (a 6 mm cutter is fine).
+* **Four Ø3.4 mm holes** on a 69.6 × 45.9 mm pattern, i.e. ±34.8, ±22.95
   from the cutout centre.
-* Panel thickness **3 mm as supplied**; anything up to **6.8 mm** works by
+* Panel thickness **3 mm as supplied**; anything up to **5.83 mm** works by
   changing `panel_t` in `bezel.scad` and re-exporting. Thicker than that and
   the back clamp can no longer reach the PCB.
 
@@ -38,14 +39,25 @@ the panel, with **10.8 mm** behind it (plus the pin headers if fitted).
 
 ## Protective sheet
 
-Cut the 2 mm sheet to **56 × 32.4 mm**. It drops into the front bezel behind
+Cut the 1 mm sheet to **56.1 × 32.4 mm**. It drops into the front bezel behind
 the window and the module's cover glass presses against it. The pocket is
-56.5 × 32.9, so it is a slip fit — file the corners to roughly R1.25.
+56.6 × 32.9, so it is a slip fit — file the corners to roughly R1.25.
+
+## The window is deliberately off-centre
+
+The clear aperture in the glass is **not centred on the glass**: it sits about
+1.9 mm towards the end away from the USB-C socket, leaving roughly 7.1 mm of
+black border at the USB end and 3.3 mm at the other. The window is cut
+45.1 × 24.7 and shifted to match (`va_off_x` in `bezel.scad`).
+
+**Check this before printing.** Hold the board screen-up: the black border
+should be visibly wider at the USB end. If it is wider at the *other* end,
+change `va_off_x` to `-1.90` and re-export the front part.
 
 ## Assembly
 
 1. Drop the protective sheet into the back of the front bezel.
-2. Lay the module in behind it, glass first, into the 55.5 × 31.9 pocket.
+2. Lay the module in behind it, glass first, into the 55.6 × 31.9 pocket.
    The 2 × 20 headers and the USB-C socket face away from you.
 3. From the front of the panel, push the bezel's spigot through the cutout.
 4. From behind, slide the back clamp over the module — the two ribs go
@@ -60,11 +72,12 @@ the back clamp is open behind the module and the cable exits to the side.
 
 ```
    z=0     front face of the bezel
-   3.0     back of the face plate ─┐
-   5.0     front of the cover glass ├ 2 mm protective sheet
-   7.5     back of the cover glass ─┘
-  12.8     back of the PCB          ← the ribs bear here
-  16.8     back of the rear components
+   3.0     back of the face plate ─┐ 1 mm protective sheet
+   4.0     front of the cover glass ┘
+   6.54    back of the cover glass
+  11.83    back of the PCB            ← the ribs bear here
+  15.8     back of the rear components
+  21.5     tips of the pin headers
 ```
 
 The front bezel locates the glass; the back clamp's ribs press on the PCB to
@@ -90,26 +103,29 @@ used — it is a clamp, not a screwed mount.
 
 ## Source dimensions
 
-Taken from Waveshare's own drawing, `ESP32-S3-Touch-LCD-1.9-20250411.pdf`,
+Sizes marked *measured* were taken off the board; the rest come from
+Waveshare's drawing `ESP32-S3-Touch-LCD-1.9-20250411.pdf`,
 in [ESP32-S3-Touch-LCD-1.9-DAD.rar](https://files.waveshare.com/wiki/ESP32-S3-LCD-1.9/ESP32-S3-Touch-LCD-1.9-DAD.rar)
 (linked from the [wiki](https://www.waveshare.com/wiki/ESP32-S3-LCD-1.9)).
 
-| Feature | Size |
-|---|---|
-| Cover glass | 55.00 × 31.40, 4 × R1.00 |
-| Active area | 43.12 × 23.10, centred on the glass |
-| Display module outline | 52.36 × 28.80 |
-| PCB | 52.60 × 29.00 × 1.6 (glass overhangs it 1.20 all round) |
-| Glass front → back of PCB | 7.80 |
-| Glass front → back of rear components | 11.80 |
-| Glass front → back of cover glass | 2.50 |
-| Mounting holes | 4 × M2, 40.75 × 25.00 pattern (unused here) |
-| USB-C | left-hand short edge, on the back face |
+| Feature | Size | Source |
+|---|---|---|
+| Cover glass | 55.10 × 31.40, 4 × R1.00 | measured (drawing: 55.00) |
+| Clear aperture | 44.70 × 24.30, offset 1.9 in x | measured |
+| Active pixel area | 43.12 × 23.10 | drawing |
+| Display module outline | 52.36 × 28.80 | drawing |
+| PCB | 52.60 × 29.00 × 1.6 | drawing (glass overhangs it ~1.2 all round) |
+| Glass front → back of cover glass | 2.54 | measured (drawing: 2.50) |
+| Glass front → back of PCB | 7.83 | measured (drawing: 7.80) |
+| Glass front → back of rear components | 11.80 | drawing |
+| Glass front → tips of pin headers | 17.50 | measured |
+| Mounting holes | 4 × M2, 40.75 × 25.00 pattern | drawing (unused here) |
+| USB-C | one short edge, on the back face | drawing |
 
-The drawing dimensions the active area as centred vertically in the module
-outline (2.85 top and bottom) and the outline as centred on the glass; it
-does not dimension the active area horizontally, so that is assumed centred
-too. The window is cut 0.6 mm oversize all round to absorb it.
+The window is cut to the measured **clear aperture**, not the active pixel
+area, so its edge lands on the edge of the glass mask. The aperture is
+1.6 mm wider and 1.2 mm taller than the active area, so there is that much
+margin before any pixels are hidden.
 
 ## Regenerating
 
