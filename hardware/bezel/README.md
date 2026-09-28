@@ -104,11 +104,18 @@ sheet; if the back clamp will not sit flat on the panel, reduce it.
 
 The ribs bear only where the PCB is clear of components: the strips along the
 long edges, between **y 11.0–14.5** and **x −8 to +21.5** from the board
-centre. That keeps them clear of the pin-header bodies (which reach 10.14 mm
-from the centreline), the **BOOT and RST buttons** and the mounting standoff
-at the USB end, and the standoff at the far end. `rib_x_lo` is what to change
-if they still catch anything. The board's four M2 holes are **not** used — it
-is a clamp, not a screwed mount.
+centre (mirrored with `usb_left`). That keeps them clear of the pin-header
+bodies, which reach 10.14 mm from the centreline, and of the mounting
+standoff at the far end.
+
+The **BOOT and RST buttons** at the USB end need more than that. They stand
+about 1 mm off the PCB *and* their actuators overhang its edge, so the whole
+rib — leg as well as foot — stops 11 mm short of them; nothing passes over
+that end of the board at all. The box wall is the only thing near them, 1.5 mm
+out from the PCB edge. `rib_x_lo` is what to change if anything still catches.
+
+The board's four M2 holes are **not** used — it is a clamp, not a screwed
+mount.
 
 ## Printing
 

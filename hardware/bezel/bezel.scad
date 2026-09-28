@@ -65,7 +65,7 @@ sheet_over   = 0.50;    // sheet pocket larger than the glass pocket, per side
 cut_clr      = 0.25;    // per side, spigot to panel cutout
 win_margin   = 0.20;    // window opening beyond the clear aperture, per side
 win_chamfer  = 1.20;    // 45 deg chamfer round the window on the front face
-side_clr     = 0.50;    // per side, rib legs to the PCB edge
+side_clr     = 1.00;    // per side, rib legs to the PCB edge
 preload      = 0.30;    // ribs run this much proud, to take up the stack-up
 
 /* [Screws] */
@@ -130,9 +130,12 @@ z_plate_bk = z_panel_bk + back_t;          // back face of the back plate
 max_panel_t = d_pcb_back + sheet_t - back_t;      // 6.8 mm with the defaults
 assert(panel_t <= max_panel_t, "panel_t too thick: the ribs cannot reach the PCB");
 
-// Bearing ribs. The PCB's outer strips are clear of components between the
-// buttons/standoff at the left end and the standoff at the right end; the
-// pin-header bodies reach 10.14 mm out from the centreline.
+// Bearing ribs. They sit on the strips along the PCB's long edges, which are
+// clear of components between the buttons/standoff at the USB end and the
+// standoff at the far end; the pin-header bodies reach 10.14 mm out from the
+// centreline. The whole rib - leg as well as foot - is kept inside
+// rib_x_lo..rib_x_hi: the BOOT and RST actuators at the USB end stand ~1 mm
+// off the PCB and overhang its edge, so nothing may pass over that end.
 rib_y_in  = 11.0;                          // inner edge of the rib foot
 rib_y_leg = pcb_h/2 + side_clr;            // legs must clear the PCB edge
 rib_y_out = pocket_h/2 + 2.5;              // and overlap the plate to bond to it
@@ -240,9 +243,9 @@ module back_body() {
 
             for (sy = [-1, 1]) scale([1, sy, 1]) {
                 // leg: runs back alongside the module, clear of the PCB edge.
-                // Full width, so it is carried by the wall along its length.
-                translate([-aperture_w/2, rib_y_leg, z_plate_bk - eps])
-                    cube([aperture_w, rib_y_out - rib_y_leg,
+                // Merges into the box wall along its whole length.
+                translate([rib_x_lo, rib_y_leg, z_plate_bk - eps])
+                    cube([rib_x_hi - rib_x_lo, rib_y_out - rib_y_leg,
                           rib_z1 - z_plate_bk + eps]);
                 // foot: turns in behind the PCB and bears on the clear strip.
                 // Bonded to the leg over the full rib thickness at rib_y_leg.
