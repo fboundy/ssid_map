@@ -288,7 +288,11 @@ static bool initPanel() {
   for (const TuneCmd& c : kTuning) esp_lcd_panel_io_tx_param(io, c.cmd, c.p, c.n);
   esp_lcd_panel_invert_color(s_panel, true);  // IPS panel: vendor init sends INVON
   esp_lcd_panel_swap_xy(s_panel, true);       // landscape (vendor MADCTL 0x70)
-  esp_lcd_panel_mirror(s_panel, true, false);
+#if LCD_ROTATE_180
+  esp_lcd_panel_mirror(s_panel, false, true);  // USB-C to the left
+#else
+  esp_lcd_panel_mirror(s_panel, true, false);  // USB-C to the right
+#endif
   esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y);
   esp_lcd_panel_disp_on_off(s_panel, true);
   return true;

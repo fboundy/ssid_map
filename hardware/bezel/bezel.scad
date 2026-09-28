@@ -26,6 +26,9 @@
 part = "both";  // "front" | "back" | "both" | "assembly" | "section" | "cutout"
 
 /* [Your installation] */
+// Which way round the board sits, looking at the screen from the front.
+// Flip this and the firmware's LCD_ROTATE_180 together.
+usb_left     = true;
 panel_t      = 3.0;     // panel thickness (see max_panel_t below)
 sheet_t      = 1.0;     // protective sheet thickness
 flange       = 10.0;    // overlap onto the panel, all round the cutout
@@ -88,6 +91,10 @@ vents        = true;    // slots in the lid
 
 $fn = 64;
 eps = 0.01;
+
+// Everything below is laid out with the USB-C end at -x; the parts are
+// mirrored on output when the socket is wanted on the other side.
+xflip = usb_left ? -1 : 1;
 
 // ---- derived -------------------------------------------------------------
 pocket_w  = glass_w + 2*glass_fit;         // 55.50
@@ -169,13 +176,15 @@ module at_screws() {
 mark_depth = 0.6;
 module usb_mark(z_face) {
     translate([-screw_x, 0, z_face - mark_depth])
-        linear_extrude(mark_depth + eps)
-            rotate([0, 0, 90])
-                text("USB", size=4.5, halign="center", valign="center");
+        scale([xflip, 1, 1])               // cancel the part-level mirror
+            linear_extrude(mark_depth + eps)
+                rotate([0, 0, 90])
+                    text("USB", size=4.5, halign="center", valign="center");
 }
 
 // ---- front part ----------------------------------------------------------
-module front() {
+module front() { scale([xflip, 1, 1]) front_body(); }
+module front_body() {
     difference() {
         union() {
             rrect(body_w, body_h, body_r, face_t);
@@ -210,7 +219,8 @@ module front() {
 // that runs back alongside the module, outside the PCB edge, and a foot that
 // turns in behind the PCB to bear on the clear strip along its long edge.
 // Open on one side for the USB-C socket.
-module back() {
+module back() { scale([xflip, 1, 1]) back_body(); }
+module back_body() {
     assert(rib_z0 > z_plate_bk, "no room for the rib legs: reduce panel_t or back_t");
     difference() {
         union() {
@@ -255,7 +265,8 @@ module back() {
 }
 
 // ---- reference model of the module, for the assembly view ----------------
-module module_ref() {
+module module_ref() { scale([xflip, 1, 1]) module_ref_body(); }
+module module_ref_body() {
     color("black")     translate([0, 0, z_glass]) rrect(glass_w, glass_h, glass_r, glass_t);
     color("#3060a0")   translate([va_off_x, va_off_y, z_glass - 0.05])
                            rrect(va_w, va_h, 0.5, 0.1);

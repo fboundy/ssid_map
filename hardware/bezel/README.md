@@ -53,8 +53,12 @@ offset to miss the buttons at the USB end.
 
 So both parts only fit one way round. Each has **`USB` debossed on its back
 face** at the end the socket goes to — check it lines up with the board before
-you drive the screws. `va_off_x` in `bezel.scad` flips the window if ever
-needed.
+you drive the screws.
+
+As supplied the board sits with the **USB-C socket on the left** as you look
+at the screen, which is why the firmware is built with `LCD_ROTATE_180 1`.
+The two must agree: `usb_left` in `bezel.scad` mirrors both printed parts,
+`LCD_ROTATE_180` in `include/config.h` turns the image over.
 
 ## Assembly
 

@@ -40,6 +40,10 @@ subnet) is stored in NVS and survives power cycles and reflashes.
   * while routing, forwards queries to the upstream resolver.
 * Regulatory domain `GB`, channels 1–13 (IDF's default world domain is 1–11).
 
+The LCD is rotated 180° (`LCD_ROTATE_180` in `include/config.h`) so the board
+mounts with its USB-C socket on the left as you look at the screen. That has
+to match `usb_left` in the bezel — see [hardware/bezel/](hardware/bezel/).
+
 ### Web UI — `http://192.168.137.1/`
 
 * **Status** — current mode, countdown, uplink IP/RSSI, *Connect now* /

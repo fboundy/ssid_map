@@ -42,6 +42,12 @@
 // ---- Upstream DNS used when the STA link gives us none ------------------------
 #define FALLBACK_DNS     "1.1.1.1"
 
+// ---- Display orientation (Waveshare build only) ------------------------------
+// 0 = USB-C on the right as you look at the screen, 1 = rotated 180 so the
+// USB-C is on the left. The panel's 170 px axis sits centrally in the ST7789's
+// 240 columns (35 px each side), so the gap is the same either way.
+#define LCD_ROTATE_180 1
+
 // ---- Radio regulatory domain ------------------------------------------------
 // UK/EU: channels 1-13. (The IDF default "01" world domain only uses 1-11.)
 #define WIFI_COUNTRY       "GB"
