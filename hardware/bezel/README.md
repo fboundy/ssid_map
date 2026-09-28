@@ -11,8 +11,8 @@ sandwich it in place, with a 1 mm protective sheet over the screen.
 | `panel_cutout.dxf` | the cutout and screw holes, for marking out or CNC |
 
 Printed as supplied: bezel is **79.6 × 55.9 mm**, standing **3 mm** proud of
-the panel, with **9.8 mm** behind it to the rear components and **15.5 mm** to
-the tips of the pin headers.
+the panel, with a box **19 mm** deep behind it that encloses the pin headers
+(their tips sit 15.5 mm back, leaving 1.5 mm under the lid).
 
 ## Panel preparation
 
@@ -63,14 +63,22 @@ needed.
    with the USB-C socket at the end marked `USB`. The headers and the socket
    face away from you.
 3. From the front of the panel, push the bezel's spigot through the cutout.
-4. From behind, slide the back clamp over the module, `USB` mark to the same
+4. From behind, slide the back box over the module, `USB` mark to the same
    end — the two ribs go either side of the PCB — until it sits flat on the
    panel.
-5. Four **M3 × 16 countersunk** screws from the front, into the bosses on the
-   back clamp. They self-tap into Ø2.6 pilot holes; drive them gently.
+5. Four **M3 × 16 countersunk** screws from the front. They self-tap into
+   Ø2.6 pilot holes 7 mm deep in the back part; drive them gently.
 
-The USB-C socket, the pin headers and the battery connector are all clear:
-the back clamp is open behind the module and the cable exits to the side.
+### What the box encloses
+
+The back box covers the pin headers completely. The only opening is a
+**16 × 8 mm slot for the USB-C plug** in the side wall at the `USB` end, plus
+ventilation slots in the lid.
+
+Everything else on the back of the board — the battery connector, the IPEX
+antenna pad, the TF-card slot on the opposite short edge — ends up sealed in.
+If you need any of them, add a cut-out in `bezel.scad`; the USB slot
+(`usb_open_*`) is the pattern to copy.
 
 ## How it holds together
 
@@ -91,19 +99,22 @@ increase `preload` by 0.2 mm or add a strip of thin foam tape behind the
 sheet; if the back clamp will not sit flat on the panel, reduce it.
 
 The ribs bear only where the PCB is clear of components: the strips along the
-long edges, between **y 11.0–14.5** and **x −14 to +21.5** from the board
+long edges, between **y 11.0–14.5** and **x −8 to +21.5** from the board
 centre. That keeps them clear of the pin-header bodies (which reach 10.14 mm
-from the centreline), the two buttons and the mounting standoff at the left
-end, and the standoff at the right end. The board's four M2 holes are **not**
-used — it is a clamp, not a screwed mount.
+from the centreline), the **BOOT and RST buttons** and the mounting standoff
+at the USB end, and the standoff at the far end. `rib_x_lo` is what to change
+if they still catch anything. The board's four M2 holes are **not** used — it
+is a clamp, not a screwed mount.
 
 ## Printing
 
 * 0.2 mm layers, 3 perimeters, 30 % infill. PETG or ABS if it will sit in
   sunlight; PLA will creep under the screw preload if it gets warm.
-* Print both parts **face down** (the large flat face on the bed). No
-  supports needed — every overhang is a 2.5 mm rib or a boss. The `USB` mark
-  is a 0.6 mm recess in the upward face.
+* Print the **front part face down** — the flat front on the bed.
+* Print the **back part lid down**. Its walls flare out to the flange at 45°
+  precisely so this needs no supports; printing it flange-down instead would
+  leave the lid bridging the whole cavity.
+* No supports for either part. The `USB` marks are 0.6 mm recesses.
 * The window chamfer prints cleanly face down; it is the top surface.
 
 ## Source dimensions

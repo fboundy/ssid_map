@@ -69,14 +69,22 @@ preload      = 0.30;    // ribs run this much proud, to take up the stack-up
 screw_clr    = 3.4;     // M3 clearance, front part
 screw_head_d = 6.2;     // countersunk head
 screw_pilot  = 2.6;     // self-tapping pilot, back part
-boss_d       = 7.0;
-boss_len     = 6.0;     // boss standing back from the back plate
+screw_depth  = 7.0;     // pilot depth into the back part
 
 /* [Printed wall thicknesses] */
 face_t       = 3.0;     // front plate
 back_t       = 3.0;     // back plate
 wall         = 2.0;     // spigot wall around the glass pocket
 rib_t        = 2.5;     // rib thickness behind the PCB
+
+/* [Back box, covering the pin headers] */
+box_wall     = 2.5;     // wall of the box behind the panel
+lid_t        = 2.0;     // its back face
+pin_gap      = 1.5;     // clearance behind the pin tips
+usb_open_w   = 16.0;    // USB-C opening in the side wall (across the board)
+usb_open_h   = 8.0;
+usb_open_z   = 10.5;    // from the bezel front face
+vents        = true;    // slots in the lid
 
 $fn = 64;
 eps = 0.01;
@@ -121,13 +129,24 @@ assert(panel_t <= max_panel_t, "panel_t too thick: the ribs cannot reach the PCB
 rib_y_in  = 11.0;                          // inner edge of the rib foot
 rib_y_leg = pcb_h/2 + side_clr;            // legs must clear the PCB edge
 rib_y_out = pocket_h/2 + 2.5;              // and overlap the plate to bond to it
-rib_x_lo  = -14.0;                         // clear of the left buttons/standoff
+rib_x_lo  =  -8.0;                         // well clear of the BOOT/RST buttons
 rib_x_hi  =  21.5;                         // clear of the right standoff
 rib_z0    = z_pcb_bk - preload;            // bearing face
 rib_z1    = rib_z0 + rib_t;                // back of the ribs
 
 aperture_w = pocket_w + 0.6;               // module passes through the plate here
 aperture_h = pocket_h + 0.6;
+
+// The back part closes into a box deep enough to cover the header pins. It
+// flares out to the flange at 45 degrees so it prints on its lid, unsupported.
+box_w      = aperture_w + 2*box_wall;
+box_h      = aperture_h + 2*box_wall;
+box_r      = pocket_r + box_wall;
+z_box_in   = z_glass + d_pins + pin_gap;   // inner face of the lid
+z_box_out  = z_box_in + lid_t;
+flare_h    = max((body_w - box_w)/2, (body_h - box_h)/2);
+z_flare_end = z_plate_bk + flare_h;
+assert(z_flare_end < z_box_in, "no room for the 45 degree flare: the box is too shallow");
 
 // ---- helpers -------------------------------------------------------------
 module rrect(w, h, r, t) {
@@ -186,20 +205,32 @@ module front() {
 }
 
 // ---- back part -----------------------------------------------------------
-// Plate + bosses + two L-section ribs. Each rib is a leg that runs back
-// alongside the module (outside the PCB edge) and a foot that turns in
-// behind the PCB to bear on it.
+// A box that covers the pin headers, flaring out at 45 degrees to the flange
+// that clamps the panel. Two L-section ribs inside it press on the PCB: a leg
+// that runs back alongside the module, outside the PCB edge, and a foot that
+// turns in behind the PCB to bear on the clear strip along its long edge.
+// Open on one side for the USB-C socket.
 module back() {
     assert(rib_z0 > z_plate_bk, "no room for the rib legs: reduce panel_t or back_t");
     difference() {
         union() {
-            translate([0, 0, z_panel_bk]) rrect(body_w, body_h, body_r, back_t);
-            at_screws() translate([0, 0, z_plate_bk - eps])
-                cylinder(d=boss_d, h=boss_len + eps);
+            difference() {
+                union() {
+                    hull() {
+                        translate([0, 0, z_panel_bk]) rrect(body_w, body_h, body_r, back_t);
+                        translate([0, 0, z_flare_end - eps]) rrect(box_w, box_h, box_r, eps);
+                    }
+                    translate([0, 0, z_flare_end - eps])
+                        rrect(box_w, box_h, box_r, z_box_out - z_flare_end + eps);
+                }
+                // cavity: the module and its pins live in here
+                translate([0, 0, z_panel_bk - eps])
+                    rrect(aperture_w, aperture_h, pocket_r, z_box_in - z_panel_bk + eps);
+            }
 
             for (sy = [-1, 1]) scale([1, sy, 1]) {
                 // leg: runs back alongside the module, clear of the PCB edge.
-                // Full width, so it is carried by the plate along its length.
+                // Full width, so it is carried by the wall along its length.
                 translate([-aperture_w/2, rib_y_leg, z_plate_bk - eps])
                     cube([aperture_w, rib_y_out - rib_y_leg,
                           rib_z1 - z_plate_bk + eps]);
@@ -209,11 +240,16 @@ module back() {
                     cube([rib_x_hi - rib_x_lo, rib_y_leg - rib_y_in, rib_t]);
             }
         }
-        // the module passes through the plate here
-        translate([0, 0, z_panel_bk - eps])
-            rrect(aperture_w, aperture_h, pocket_r, back_t + 2*eps);
+        // USB-C opening, through the side wall at the marked end
+        translate([-body_w, -usb_open_w/2, usb_open_z])
+            cube([body_w - aperture_w/2 + 3, usb_open_w, usb_open_h]);
+        // ventilation slots in the lid
+        if (vents)
+            for (i = [-2 : 2])
+                translate([i*8, 0, z_box_in + lid_t/2])
+                    cube([3, aperture_h - 12, lid_t + 2*eps], center=true);
         at_screws() translate([0, 0, z_panel_bk - eps])
-            cylinder(d=screw_pilot, h=back_t + boss_len + 2*eps);
+            cylinder(d=screw_pilot, h=screw_depth + eps);
         usb_mark(z_plate_bk);
     }
 }
@@ -226,9 +262,11 @@ module module_ref() {
     color("dimgray")   translate([0, 0, z_glass + glass_t])
                            rrect(lcd_w, lcd_h, 0.5, d_pcb_back - pcb_t - glass_t);
     color("darkgreen") translate([0, 0, z_pcb_bk - pcb_t]) rrect(pcb_w, pcb_h, 0.5, pcb_t);
-    // pin headers and the tallest rear parts
+    // pin-header bodies, then the pins at their real length
     color("#222")      translate([0, 0, z_pcb_bk])
                            rrect(48.3, 20.0, 0.5, d_comp_back - d_pcb_back);
+    color("goldenrod") for (sy = [-1, 1]) translate([0, sy*8.89, z_pcb_bk])
+                           rrect(48.3, 0.8, 0.1, d_pins - d_pcb_back);
     color("silver")    translate([-pcb_w/2 - 1, -4.5, z_pcb_bk]) cube([10, 9, 3.2]);
 }
 
@@ -256,7 +294,7 @@ else if (part == "assembly") {
         square([cutout_w, cutout_h], center=true);
     at_screws() circle(d=screw_clr);
 } else if (part == "section") {
-    // Cut the assembly on the YZ plane to check the stack-up and clearances.
+    // Cut the assembly along its length to check the stack-up and clearances.
     difference() {
         union() {
             color("steelblue") front();
@@ -264,7 +302,7 @@ else if (part == "assembly") {
             module_ref();
             panel_ref();
         }
-        translate([0, -60, -10]) cube([120, 120, 60]);
+        translate([-100, 0, -10]) cube([200, 120, 80]);   // keep y<0
     }
 } else {
     translate([0, -body_h/2 - 4, 0]) front();
@@ -276,8 +314,8 @@ echo(str("panel screw holes  : 4 x 3.4 mm at +/-", screw_x, ", +/-", screw_y));
 echo(str("bezel outer size   : ", body_w, " x ", body_h, " mm"));
 echo(str("cut the sheet to   : ", sheet_cut_w, " x ", sheet_cut_h, " mm"));
 echo(str("front part depth   : ", face_t + panel_t, " mm"));
-echo(str("depth behind panel : ", z_comp_bk - z_panel_bk, " mm to components, ",
-         z_glass + d_pins - z_panel_bk, " mm to pin tips"));
+echo(str("depth behind panel : ", z_box_out - z_panel_bk, " mm overall (pins end at ",
+         z_glass + d_pins - z_panel_bk, " mm)"));
 echo(str("window             : ", va_w + 2*win_margin, " x ", va_h + 2*win_margin,
          " mm, offset ", va_off_x, ", ", va_off_y));
 echo(str("max panel_t        : ", max_panel_t, " mm"));
