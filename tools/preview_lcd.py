@@ -28,8 +28,8 @@ C_OK=(60,200,110); C_WARN=(240,180,60); C_BAD=(240,80,80); C_ACC=(90,170,255)
 
 def textw(f, s): return len(s) * f["w"]
 
-def fit(s, w):
-    if textw(XL, s) <= w: return XL
+def fit(s, w, allow_xl=True):
+    if allow_xl and textw(XL, s) <= w: return XL
     if textw(LARGE, s) <= w: return LARGE
     if textw(MED, s) <= w: return MED
     return SMALL
@@ -122,12 +122,14 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
             centre(px, rcx, 60, SMALL, C_BAD, "Internet")
     d.rectangle([0, MID_Y, W - 1, MID_Y], fill=C_LINE)
 
-    text(px, LEFT_X, BOT_Y + 8, SMALL, C_DIM, "Device Connection:")
+    text(px, LEFT_X, BOT_Y + 6, SMALL, C_DIM, "Device Connection:")
     if not host:
-        text(px, LEFT_X, BOT_Y + 32, fit("None set", LEFT_W), C_DIM, "None set")
+        text(px, LEFT_X, BOT_Y + 26, fit("None set", LEFT_W, False), C_DIM, "None set")
         return img
-    hf = fit(host, LEFT_W)
-    text(px, LEFT_X, BOT_Y + 32, hf, C_FG if host_here else C_DIM, host, LEFT_W // hf["w"])
+    hf = fit(host, LEFT_W, False)
+    text(px, LEFT_X, BOT_Y + 26, hf, C_FG if host_here else C_DIM, host, LEFT_W // hf["w"])
+    if host_here:
+        text(px, LEFT_X, BOT_Y + 56, SMALL, C_DIM, "192.168.137.11")
     if host_here:
         tick(d, rcx - 14, BOT_Y + 6, 28, C_OK)
         centre(px, rcx, BOT_Y + 40, SMALL, C_OK, "Connected")

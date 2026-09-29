@@ -120,9 +120,10 @@ static void textCentre(int cx, int y, const Font& f, uint16_t c, const std::stri
   text(cx - textW(f, t) / 2, y, f, c, t);
 }
 
-// Largest of the four faces that fits s in w px (then clipping).
-static const Font& fitFont(const std::string& s, int w) {
-  if (textW(FONT_XL, s) <= w) return FONT_XL;
+// Largest of the four faces that fits s in w px (then clipping). Callers that
+// need a line underneath pass allowXL = false to keep the block short enough.
+static const Font& fitFont(const std::string& s, int w, bool allowXL = true) {
+  if (allowXL && textW(FONT_XL, s) <= w) return FONT_XL;
   if (textW(FONT_LARGE, s) <= w) return FONT_LARGE;
   if (textW(FONT_MED, s) <= w) return FONT_MED;
   return FONT_SMALL;
@@ -360,19 +361,27 @@ static void render(const StatusSnapshot& s, const speedtest::Result& sp) {
   std::string hostMac = store.hostMac(), hostName = store.hostName();
   appUnlock();
 
-  text(LEFT_X, BOT_Y + 8, FONT_SMALL, C_DIM, "Device Connection:");
+  text(LEFT_X, BOT_Y + 6, FONT_SMALL, C_DIM, "Device Connection:");
   if (hostMac.empty()) {
-    const Font& f = fitFont("None set", LEFT_W);
-    text(LEFT_X, BOT_Y + 32, f, C_DIM, "None set");
+    text(LEFT_X, BOT_Y + 26, fitFont("None set", LEFT_W, false), C_DIM, "None set");
     return;
   }
 
   bool here = false;
+  std::string hostIp;
   for (const auto& c : s.clients) {
-    if (c.mac == hostMac) here = true;
+    if (c.mac == hostMac) {
+      here = true;
+      hostIp = c.ip;
+    }
   }
-  const Font& hf = fitFont(hostName, LEFT_W);
-  text(LEFT_X, BOT_Y + 32, hf, here ? C_FG : C_DIM, hostName, LEFT_W / hf.width);
+  // Capped below FONT_XL so the lease line below always has room.
+  const Font& hf = fitFont(hostName, LEFT_W, false);
+  text(LEFT_X, BOT_Y + 26, hf, here ? C_FG : C_DIM, hostName, LEFT_W / hf.width);
+  if (here) {
+    text(LEFT_X, BOT_Y + 56, FONT_SMALL, C_DIM,
+         hostIp.empty() ? std::string("no lease yet") : hostIp, LEFT_W / FONT_SMALL.width);
+  }
 
   const int d = 28;
   if (here) {

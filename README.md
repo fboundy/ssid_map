@@ -83,9 +83,13 @@ status block in a column on the right.
 
 **Bottom half** — the named device:
 
-* `Device Connection:` above the device's name, or `None set`.
+* `Device Connection:` above the device's name, with its DHCP lease IP
+  underneath when it is on the AP — or `None set`.
 * Right: a green tick over `Connected`, or a red no-entry symbol over
   `Not Connected`.
+
+The device name uses at most the 22 px face, so the lease line always has
+room; the uplink SSID above it can still go to 36 px.
 
 Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
 backlight 14 on LEDC PWM — from Waveshare's demo code), 35-px panel offset,
