@@ -16,10 +16,6 @@
 #define AP_LEASE_COUNT     20
 
 // ---- Behaviour --------------------------------------------------------------
-// After boot, if any SSIDs are saved, wait this long (still scanning) before
-// connecting to the strongest saved one. Gives the user a window to change
-// the selection first.
-#define BOOT_GRACE_MS          60000UL
 // How often to rescan while not connected. Every scan takes the radio off the
 // AP channel (~1.5 s), during which the AP stops beaconing, so keep this low.
 #define IDLE_SCAN_INTERVAL_MS  30000UL

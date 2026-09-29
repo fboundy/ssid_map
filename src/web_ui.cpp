@@ -102,7 +102,6 @@ static esp_err_t handleStatus(httpd_req_t* req) {
 
   cJSON* root = cJSON_CreateObject();
   cJSON_AddStringToObject(root, "mode", modeName(s.mode));
-  cJSON_AddNumberToObject(root, "countdown", s.countdownMs);
   cJSON_AddStringToObject(root, "target", s.target.c_str());
   cJSON_AddStringToObject(root, "error", s.error.c_str());
   cJSON_AddStringToObject(root, "override", s.visibleOverride.c_str());

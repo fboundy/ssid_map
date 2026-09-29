@@ -19,8 +19,8 @@ Wi-Fi/lwIP build options that matter for routing throughput.
 
 | Situation | What the device does |
 |---|---|
-| Boot, no SSIDs selected | Brings up AP **Penrith MRT Xebro**, scans every 30 s, waits (`waiting`). |
-| Boot, SSIDs selected | 60 s countdown (`countdown`), then joins the **strongest visible** selected SSID and enables NAT (`routing`). |
+| Boot, no SSIDs selected | Brings up AP **Penrith MRT Xebro**, scans every 30 s, waits (`waiting`). Selecting one joins it straight away. |
+| Boot, SSIDs selected | Joins the **strongest visible** selected SSID as soon as the first scan lands — about 3 s — and enables NAT (`routing`). Roughly 7 s from power-on to routing. |
 | Uplink drops / join fails | Rescans, waits 5 s, joins the strongest selected SSID again (`retry`). |
 | An enabled **over-ride SSID** is in range | NAT disabled, uplink dropped, stays AP-only (`override`) until it disappears. While routing it rescans every 30 s to check for this (only if an over-ride is enabled). |
 | User presses *Disconnect* | Stays AP-only (`hold`) until *Connect now* or reboot. |
@@ -46,7 +46,7 @@ to match `usb_left` in the bezel — see [hardware/bezel/](hardware/bezel/).
 
 ### Web UI — `http://192.168.137.1/`
 
-* **Status** — current mode, countdown, uplink IP/RSSI, *Connect now* /
+* **Status** — current mode, uplink IP/RSSI, *Connect now* /
   *Disconnect* / *Rescan*.
 * **Available networks** — live scan sorted by signal. *Select* (with password)
   adds an SSID to the selected list; *+Over-ride* adds it as an over-ride.

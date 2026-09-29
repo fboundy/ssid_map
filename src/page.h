@@ -18,7 +18,7 @@ main{max-width:720px;margin:0 auto;padding:12px 12px 40px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
 .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
 .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:600;font-size:13px;color:#fff;background:var(--mut)}
-.badge.routing{background:var(--ok)}.badge.countdown,.badge.connecting,.badge.retry{background:var(--warn)}.badge.override,.badge.hold{background:var(--bad)}
+.badge.routing{background:var(--ok)}.badge.connecting,.badge.retry{background:var(--warn)}.badge.override,.badge.hold{background:var(--bad)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1 1 auto}
 button{font:inherit;padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--chip);color:var(--fg);cursor:pointer}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}button.danger{color:var(--bad)}button:disabled{opacity:.5;cursor:default}
@@ -115,13 +115,12 @@ function setApNet(){api('/api/apnet',{net:v('apnet')});}
 function setHost(){const mac=v('hostMac')||v('hostPick');if(!mac)return toast('Pick or type a MAC',true);const name=v('hostName');if(!name)return toast('Name required',true);api('/api/host',{mac,name}).then(ok=>{if(ok){$('hostMac').value='';$('hostPick').value='';$('hostName').value='';}});}
 function sigPct(r){return Math.max(0,Math.min(100,Math.round((r+95)*100/60)));}
 function sig(r){return el('span',{},el('span',{class:'sig'},el('i',{style:'width:'+sigPct(r)+'%'})),el('span',{class:'mut small'},r+' dBm'));}
-const MODE_TEXT={waiting:'No networks selected — waiting for a selection.',countdown:'Auto-connect to the strongest selected network in',connecting:'Joining',routing:'Routing AP clients via',retry:'Looking for a selected network…',hold:'Disconnected by user. Press Connect now to resume.',override:'Over-ride SSID in range — NAT disabled.'};
+const MODE_TEXT={waiting:'No networks selected — waiting for a selection.',connecting:'Joining',routing:'Routing AP clients via',retry:'Looking for a selected network…',hold:'Disconnected by user. Press Connect now to resume.',override:'Over-ride SSID in range — NAT disabled.'};
 function render(s){
   S=s;
   $('apinfo').textContent=s.ap.ssid+' · '+s.ap.ip+' · '+s.ap.clients+' client'+(s.ap.clients==1?'':'s');
   const m=$('mode');m.textContent=s.mode.toUpperCase();m.className='badge '+s.mode;
   let t=MODE_TEXT[s.mode]||'';
-  if(s.mode==='countdown')t+=' '+Math.ceil(s.countdown/1000)+'s';
   if(s.mode==='connecting'||s.mode==='routing')t+=' "'+(s.sta.ssid||s.target)+'"';
   if(s.mode==='override')t+=' ("'+s.override+'")';
   $('modeText').textContent=t;
@@ -132,7 +131,7 @@ function render(s){
   const d=$('sta');d.innerHTML='';
   if(s.sta.connected){[['Uplink',s.sta.ssid],['IP',s.sta.ip],['Gateway',s.sta.gw],['DNS',s.sta.dns],['RSSI',s.sta.rssi+' dBm']].forEach(([k,x])=>{d.append(el('dt',{},k),el('dd',{},x));});}
   $('btnConnect').disabled=!s.saved.length||!!s.override;
-  $('btnDisconnect').disabled=!(s.mode==='routing'||s.mode==='connecting'||s.mode==='countdown'||s.mode==='retry');
+  $('btnDisconnect').disabled=!(s.mode==='routing'||s.mode==='connecting'||s.mode==='retry');
   $('btnScan').disabled=s.scanning;
   const sp=s.speed||{};$('btnSpeed').style.display=sp.enabled?'':'none';$('btnSpeed').disabled=!!sp.running||s.mode!=='routing';
   let spt='';if(sp.enabled){if(sp.running)spt='Speed test running…';else if(sp.valid)spt='Speed test: '+sp.down.toFixed(1)+' Mb/s down / '+sp.up.toFixed(1)+' Mb/s up · '+sp.ping+' ms · '+sp.server+' · '+(sp.ageSec<60?sp.ageSec+' s':Math.round(sp.ageSec/60)+' min')+' ago';else if(sp.error)spt='Speed test failed: '+sp.error;else spt='Speed test: not run yet';if(sp.valid&&sp.error)spt+=' ('+sp.error+')';}

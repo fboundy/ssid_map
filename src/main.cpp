@@ -1,9 +1,10 @@
 // Penrith MRT Xebro - Wi-Fi SSID selector and NAT router for ESP32-S3 (ESP-IDF).
 //
 // Boot:  AP "Penrith MRT Xebro" comes up (default 192.168.137.1) with a web UI.
-//        If SSIDs are saved in NVS, wait BOOT_GRACE_MS (scanning), then join
-//        the strongest visible saved network and NAT AP clients through it.
-//        If nothing is saved, wait for the user to select networks.
+//        If SSIDs are saved in NVS it joins the strongest visible one as soon
+//        as the first scan lands, and NATs AP clients through it. If nothing
+//        is saved it waits for the user to select networks. Either way it
+//        keeps scanning, and the list can be changed at any time.
 //        If an enabled over-ride SSID is in range, NAT stays off.
 
 #include <algorithm>
@@ -45,7 +46,6 @@ static esp_netif_t* s_apNetif = nullptr;
 static esp_netif_t* s_staNetif = nullptr;
 
 static Mode s_mode = Mode::WAITING;
-static int64_t s_countdownEnd = 0;
 static int64_t s_retryAt = 0;
 static int64_t s_connectStarted = 0;
 static std::string s_target;
@@ -79,7 +79,6 @@ void appUnlock() { xSemaphoreGiveRecursive(s_lock); }
 const char* modeName(Mode m) {
   switch (m) {
     case Mode::WAITING:    return "waiting";
-    case Mode::COUNTDOWN:  return "countdown";
     case Mode::CONNECTING: return "connecting";
     case Mode::ROUTING:    return "routing";
     case Mode::RETRY:      return "retry";
@@ -244,7 +243,6 @@ static void applyOverrideCheck() {
   std::string ov = visibleOverrideSsid();
   if (!ov.empty()) {
     switch (s_mode) {
-      case Mode::COUNTDOWN:
       case Mode::RETRY:
         ESP_LOGI(TAG, "override: \"%s\" visible; routing suppressed", ov.c_str());
         setMode(Mode::OVERRIDE);
@@ -311,11 +309,6 @@ StatusSnapshot snapshot() {
   StatusSnapshot s;
   appLock();
   s.mode = s_mode;
-  s.countdownMs = 0;
-  if (s_mode == Mode::COUNTDOWN) {
-    int64_t d = s_countdownEnd - nowMs();
-    s.countdownMs = d > 0 ? (uint32_t)d : 0;
-  }
   s.target = s_target;
   s.error = s_lastError;
   s.visibleOverride = visibleOverrideSsid();
@@ -402,11 +395,10 @@ void onStoreChanged() {
     setMode(Mode::WAITING);
     return;
   }
-  // First selection while idle: start the grace countdown so the user can
-  // keep editing, then auto-connect (same as boot behaviour).
+  // First selection while idle: join it as soon as a scan can confirm it.
   if (s_mode == Mode::WAITING) {
-    s_countdownEnd = nowMs() + BOOT_GRACE_MS;
-    setMode(Mode::COUNTDOWN);
+    s_retryAt = nowMs();
+    setMode(Mode::RETRY);
     return;
   }
   // If the network we're on was just removed, drop it.
@@ -470,15 +462,6 @@ static void tick() {
     case Mode::HOLD:
     case Mode::OVERRIDE:
       if (!s_scanRunning && now - s_lastScanKick >= (int64_t)IDLE_SCAN_INTERVAL_MS) kickScan();
-      break;
-
-    case Mode::COUNTDOWN:
-      if (now >= s_countdownEnd) {
-        s_retryAt = now;
-        setMode(Mode::RETRY);
-      } else if (!s_scanRunning && now - s_lastScanKick >= (int64_t)IDLE_SCAN_INTERVAL_MS) {
-        kickScan();
-      }
       break;
 
     case Mode::RETRY:
@@ -585,9 +568,10 @@ extern "C" void app_main(void) {
 
   appLock();
   if (store.count() > 0) {
-    s_countdownEnd = nowMs() + BOOT_GRACE_MS;
-    setMode(Mode::COUNTDOWN);
-    ESP_LOGI(TAG, "boot: %d saved network(s); auto-connect in %lus", store.count(), (unsigned long)(BOOT_GRACE_MS / 1000));
+    // Join as soon as the first scan says which of them is strongest.
+    s_retryAt = nowMs();
+    setMode(Mode::RETRY);
+    ESP_LOGI(TAG, "boot: %d saved network(s); joining the strongest once the scan lands", store.count());
   } else {
     ESP_LOGI(TAG, "boot: no saved networks; waiting for selection");
   }

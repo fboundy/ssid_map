@@ -7,7 +7,6 @@
 // Top-level behaviour of the device.
 enum class Mode {
   WAITING,     // no SSIDs saved: sit in AP mode until the user selects some
-  COUNTDOWN,   // SSIDs saved: boot grace period before auto-connect
   CONNECTING,  // STA join in progress
   ROUTING,     // STA up, NAT enabled, AP clients have internet
   RETRY,       // STA dropped or failed; rescan and pick the best again
@@ -32,7 +31,6 @@ struct ScanEntry {
 // Point-in-time copy of everything the web UI shows. Built under the app lock.
 struct StatusSnapshot {
   Mode mode;
-  uint32_t countdownMs;
   std::string target;
   std::string error;
   std::string visibleOverride;
