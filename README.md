@@ -166,6 +166,9 @@ Notes for this Windows machine:
 that mounts the Waveshare board into a flat panel behind a 1 mm protective
 sheet, with STLs, a panel-cutout DXF and the module's dimensions.
 
+[hardware/fan-grille/](hardware/fan-grille/) is a printable finger guard for a
+40 mm fan, parametric for other sizes.
+
 ## Layout
 
 ```
