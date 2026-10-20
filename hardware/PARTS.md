@@ -14,14 +14,32 @@ Prices are as listed in October 2026 and include VAT unless noted.
 
 | Qty | Part | Supplier | Price |
 |---:|---|---|---|
-| 1 | **Waveshare ESP32-S3 1.9" Display Dev Board with IMU** — WAV-30995 | [The Pi Hut](https://thepihut.com/products/esp32-s3-1-9-display-dev-board-with-imu-touch-option?variant=55135475073409) | £15.40 |
+| 1 | **Waveshare ESP32-S3 1.9" Display Dev Board with IMU — With Touch** — WAV-30939 | [The Pi Hut](https://thepihut.com/products/esp32-s3-1-9-display-dev-board-with-imu-touch-option?variant=55135475106177) | £19.20 |
 | 1 | **Xebro** radio gateway | [xebro.co.uk](https://www.xebro.co.uk/home) | — |
 
-> The Pi Hut link selects the **No Touch** variant. The firmware never uses
-> the touch controller, so that is the right choice — but Waveshare only
-> fits the **IPEX antenna connector to the Touch version**. If the plan is
-> ever to put an external aerial on *this board* rather than on the satellite terminal,
-> it has to be the Touch variant, with the 0 Ω link moved.
+> **It must be the With-Touch variant**, even though the firmware never uses
+> the touch controller. Waveshare sell two mechanically different boards under
+> one name, and the bezel fits only this one. The cheaper No-Touch board
+> (WAV-30995, £15.40) will not fit it.
+
+| | **With Touch** — what the bezel fits | No Touch |
+|---|---|---|
+| PCB | 52.60 × 29.00 | 51.00 × 26.00 |
+| Front face | cover glass **55.10 × 31.40**, overhanging the PCB by 1.2 mm all round | LCD module 49.72 × 25.80, sitting *inside* the PCB outline |
+| Active area | 43.12 × 23.10 | 42.72 × 22.70 |
+| Depth | 11.80 to the rear components | 15.90 |
+| M2 pattern | 40.75 × 25.00 | different again |
+
+The bezel works by trapping that overhanging cover glass in a 55.6 × 31.9
+pocket and pressing it against the sheet. The No-Touch board has no such
+glass — its largest feature is the bare PCB, which would sit in that pocket
+with 2 mm of slop per side and nothing to seal against. The window position
+and the clamp ribs are wrong for it too.
+
+The With-Touch board is also the only one with the **IPEX antenna pad**, if an
+external aerial on the board itself is ever wanted (the 0 Ω link has to be
+moved to use it). Both figures above are from Waveshare's own drawings, in the
+`-DAD.rar` downloads linked from the [wiki](https://www.waveshare.com/wiki/ESP32-S3-LCD-1.9).
 
 ## Power
 
