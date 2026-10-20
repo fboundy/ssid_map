@@ -1,12 +1,12 @@
 # Penrith MRT Xebro — ESP32-S3 Wi-Fi selector / NAT router
 
-The Wi-Fi router inside Penrith Mountain Rescue Team's **enclosure**. It joins
-the vehicle's satellite terminal (`Vehicle Mobile 1` / `Vehicle Mobile 2`) and hands a
-private access point to the [Xebro](https://www.xebro.co.uk/home) 
-gateway, which bridges it to the vehicle radio. The LCD shows which
-satellite terminal it is on, how fast it is, and whether the Xebro has joined.
+A small vehicle Wi-Fi router. It joins whichever of a chosen set of upstream
+networks is strongest — a satellite terminal or a phone hotspot — and hands a
+private access point to a client device that needs internet but can only speak
+Wi-Fi. The LCD shows which uplink it is on, how fast it is, and whether the
+client has joined.
 
-* [hardware/PARTS.md](hardware/PARTS.md) — parts list for one box
+* [hardware/PARTS.md](hardware/PARTS.md) — parts list for one unit
 
 Firmware for ESP32-S3 boards with 16 MB flash + 8 MB octal PSRAM. The device
 always advertises one access point and can join one of a user-selected list of

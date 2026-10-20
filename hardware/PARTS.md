@@ -1,12 +1,10 @@
-# Parts list — the enclosure
+# Parts list
 
 One vehicle-mounted unit. The ESP32 in this repo is the **router**: it joins
-the vehicle's satellite terminal Wi-Fi (`Vehicle Mobile 1` / `Vehicle Mobile 2`) and
-hands a private AP to the [Xebro](https://www.xebro.co.uk/home) 
-gateway, which bridges it to the vehicle radio. The LCD shows which
-satellite terminal it is on, how fast, and whether the Xebro has joined.
-
-the in-vehicle procedure.
+the vehicle's satellite terminal over Wi-Fi and hands a private AP to the
+client device — here a [Xebro](https://www.xebro.co.uk/home) radio gateway.
+The LCD shows which uplink it is on, how fast, and whether the client has
+joined.
 
 Prices are as listed in October 2026 and include VAT unless noted.
 
@@ -15,7 +13,7 @@ Prices are as listed in October 2026 and include VAT unless noted.
 | Qty | Part | Supplier | Price |
 |---:|---|---|---|
 | 1 | **Waveshare ESP32-S3 1.9" Display Dev Board with IMU — With Touch** — WAV-30939 | [The Pi Hut](https://thepihut.com/products/esp32-s3-1-9-display-dev-board-with-imu-touch-option?variant=55135475106177) | £19.20 |
-| 1 | **Xebro** radio gateway | [xebro.co.uk](https://www.xebro.co.uk/home) | — |
+| 1 | **Xebro** radio gateway — the client device | [xebro.co.uk](https://www.xebro.co.uk/home) | — |
 
 > **It must be the With-Touch variant**, even though the firmware never uses
 > the touch controller. Waveshare sell two mechanically different boards under

@@ -140,7 +140,7 @@ def render(ssid, connected, nat, down, up, valid, running, override, host, host_
     return img
 
 cases = [
-    ("long-16ch",   dict(ssid="Vehicle Mobile 1", connected=1, nat=1, down=23.9, up=18.5, valid=1, running=0, override="", host="Vehicle Mobile 1", host_here=1)),
+    ("long-16ch",      dict(ssid="Vehicle Mobile 1", connected=1, nat=1, down=23.9, up=18.5, valid=1, running=0, override="", host="Vehicle Mobile 1", host_here=1)),
     ("routing-short",  dict(ssid="Dlink12", connected=1, nat=1, down=23.9, up=18.5, valid=1, running=0, override="", host="Laptop", host_here=1)),
     ("routing-long",   dict(ssid="ToppinFibrus", connected=1, nat=1, down=123.4, up=9.8, valid=1, running=0, override="", host="Francis Laptop", host_here=1)),
     ("no-internet",    dict(ssid="ToppinHouseGuest", connected=1, nat=0, down=0, up=0, valid=0, running=0, override="", host="Laptop", host_here=0)),
