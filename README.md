@@ -1,5 +1,13 @@
 # Penrith MRT Xebro — ESP32-S3 Wi-Fi selector / NAT router
 
+The Wi-Fi router inside Penrith Mountain Rescue Team's **enclosure**. It joins
+the vehicle's satellite terminal (`Vehicle Mobile 1` / `Vehicle Mobile 2`) and hands a
+private access point to the [Xebro](https://www.xebro.co.uk/home) 
+gateway, which bridges it to the vehicle radio. The LCD shows which
+satellite terminal it is on, how fast it is, and whether the Xebro has joined.
+
+* [hardware/PARTS.md](hardware/PARTS.md) — parts list for one box
+
 Firmware for ESP32-S3 boards with 16 MB flash + 8 MB octal PSRAM. The device
 always advertises one access point and can join one of a user-selected list of
 upstream networks, routing AP clients through it (NAT).
@@ -128,8 +136,11 @@ down/up against a 500/100 uplink.
 PlatformIO with the [pioarduino](https://github.com/pioarduino/platform-espressif32)
 platform 54.03.21, `framework = espidf` (IDF 5.4.2).
 
+**`include/config.h` is not in the repo** — it holds the AP passphrase. Copy
+the template first; a fresh clone builds straight after:
+
 ```
-cp include/config.example.h include/config.h   # then set AP_PASS (gitignored)
+cp include/config.example.h include/config.h   # then set AP_PASS
 pio run -e esp32s3_n16r8                     # Sparkle (headless)
 pio run -e esp32s3_n16r8 -t upload           # flash via COM5 (see platformio.ini)
 pio run -e ws_touch_lcd_19 -t upload --upload-port COM4   # Waveshare, native USB
@@ -164,8 +175,6 @@ Notes for this Windows machine:
   `platform.json.orig`).
 
 ## Enclosure
-
-[hardware/PARTS.md](hardware/PARTS.md) is the parts list for one unit.
 
 [hardware/bezel/](hardware/bezel/) has a parametric two-part 3D-printed bezel
 that mounts the Waveshare board into a flat panel behind a 1 mm protective

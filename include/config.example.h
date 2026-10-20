@@ -1,4 +1,15 @@
 #pragma once
+//
+// Template for include/config.h, which is NOT committed because it holds the
+// AP passphrase:
+//
+//     cp include/config.example.h include/config.h
+//
+// Then set AP_PASS. Everything else here is already at its working value, so
+// a fresh clone builds as soon as the copy is made.
+//
+// AP_SSID names the whole device - the access point, the web page's title and
+// heading, the LCD splash and the boot log all take it from here.
 
 // ---- Access point the device always advertises ------------------------------
 #define AP_SSID          "Penrith MRT Xebro"

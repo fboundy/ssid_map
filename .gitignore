@@ -8,4 +8,3 @@ managed_components/
 
 # Local config with AP passphrase; copy config.example.h to config.h
 include/config.h
-arduino/include/config.h
