@@ -165,6 +165,8 @@ Notes for this Windows machine:
 
 ## Enclosure
 
+[hardware/PARTS.md](hardware/PARTS.md) is the parts list for one unit.
+
 [hardware/bezel/](hardware/bezel/) has a parametric two-part 3D-printed bezel
 that mounts the Waveshare board into a flat panel behind a 1 mm protective
 sheet, with STLs, a panel-cutout DXF and the module's dimensions.
