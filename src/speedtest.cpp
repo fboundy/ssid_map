@@ -61,7 +61,7 @@ static bool fetchServerList(Server& out, std::string& err) {
   cfg.url = "https://www.speedtest.net/api/js/servers?engine=js&limit=3";
   cfg.crt_bundle_attach = esp_crt_bundle_attach;
   cfg.timeout_ms = 10000;
-  cfg.user_agent = "Mozilla/5.0 (ESP32; Penrith MRT Xebro)";
+  cfg.user_agent = "Mozilla/5.0 (ESP32; " AP_SSID ")";
   esp_http_client_handle_t client = esp_http_client_init(&cfg);
   if (!client) { err = "http init"; return false; }
 

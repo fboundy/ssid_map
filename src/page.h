@@ -1,14 +1,17 @@
 #pragma once
-
+#include "config.h"
 
 // Single-page UI served at "/". Talks to /api/* with fetch(); no external assets
 // so it works with no internet. Text is inserted via textContent to keep SSIDs
 // from being interpreted as HTML.
+//
+// The raw literal is broken twice so the device's name comes from AP_SSID
+// rather than being spelled out again here.
 static const char PAGE_HTML[] = R"HTML(<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Penrith MRT Xebro</title>
+<title>)HTML" AP_SSID R"HTML(</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--fg:#1c2430;--mut:#6b7684;--line:#dfe4ea;--acc:#0b6bcb;--ok:#1a8f4a;--warn:#c27a00;--bad:#c62828;--chip:#eef2f6}
 @media(prefers-color-scheme:dark){:root{--bg:#121720;--card:#1b2230;--fg:#e6ebf2;--mut:#98a3b3;--line:#2c3646;--acc:#5aa8ff;--ok:#4cc27b;--warn:#f0b04a;--bad:#ff6b6b;--chip:#243044}}
@@ -32,7 +35,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1p
 dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}dt{color:var(--mut)}dd{margin:0;word-break:break-all}
 .alert{padding:10px 12px;border-radius:8px;background:var(--chip);margin-top:10px}.alert.bad{border-left:4px solid var(--bad)}.alert.ok{border-left:4px solid var(--ok)}.alert.warn{border-left:4px solid var(--warn)}
 </style></head><body>
-<header><h1>Penrith MRT Xebro</h1><small id="apinfo">&nbsp;</small></header>
+<header><h1>)HTML" AP_SSID R"HTML(</h1><small id="apinfo">&nbsp;</small></header>
 <main>
 
 <section class="card">

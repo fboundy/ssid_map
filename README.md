@@ -11,9 +11,8 @@ Two build targets (`platformio.ini`):
 | `esp32s3_n16r8` | Sparkle IoT ESP32-S3 N16R8 | headless; console on UART0 (CH343 bridge) |
 | `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | adds a status readout on the 1.9" ST7789 LCD and an hourly Ookla speed test; native USB for flashing/console |
 
-Native **ESP-IDF 5.4** build. The original Arduino-core version is kept in
-[arduino/](arduino/) for reference; it behaves the same but cannot tune the
-Wi-Fi/lwIP build options that matter for routing throughput.
+Native **ESP-IDF 5.4** build — the Wi-Fi and lwIP options that matter for
+routing throughput are only reachable from a real IDF build.
 
 ## Behaviour
 
@@ -30,8 +29,8 @@ subnet) is stored in NVS and survives power cycles and reflashes.
 
 ### Access point
 
-* SSID `Penrith MRT Xebro`; WPA2 passphrase set in `include/config.h`
-  (empty = open AP).
+* SSID and WPA2 passphrase are `AP_SSID` / `AP_PASS` in `include/config.h`
+  (empty passphrase = open AP). Default `Penrith MRT Xebro`.
 * Default subnet `192.168.137.0/24`: device is `.1`, DHCP leases `.10`–`.29`.
   Editable on the web page (private /24 only); applies after reboot.
 * Clients get the ESP32 as gateway **and** DNS. A small DNS proxy on the device:
@@ -138,8 +137,12 @@ pio device monitor                           # serial log at 115200
 ```
 
 `include/config.h` holds the AP passphrase and is not committed; the committed
-`config.example.h` has every other tunable at its default. The `arduino/`
-project uses the same arrangement.
+`config.example.h` has every other tunable at its default.
+
+The device's name comes from **`AP_SSID`** in that file. It names the access
+point, the web page's title and heading, the LCD splash and the boot log, so
+changing it there renames the whole device. It is checked at compile time for
+the 32-character SSID limit, as is `AP_PASS` for WPA2's 8–63.
 
 The Waveshare board enumerates as an Espressif "USB Serial Device" (VID 303A,
 PID 1001); the COM number varies, so pass `--upload-port`. Logs go to both
@@ -150,9 +153,9 @@ Notes for this Windows machine:
 * Run PlatformIO from PowerShell/VS Code, not Git Bash — the platform's
   toolchain installer (`idf_tools.py`) refuses to run under MSYS.
 * Windows long-path support is off, so PlatformIO could not unpack the
-  `framework-espidf` / `framework-arduinoespressif32-libs` archives itself.
-  They were extracted with a `\\?\`-path script into `~/.platformio/packages/`
-  with a hand-written `.piopm`; enabling long paths (admin) avoids this.
+  `framework-espidf` archive itself. It was extracted with a `\\?\`-path
+  script into `~/.platformio/packages/` with a hand-written `.piopm`;
+  enabling long paths (admin) avoids this.
 * The bundled `esptool` needs `click < 8.2` in PlatformIO's venv
   (`~/.platformio/penv/Scripts/python -m pip install "click<8.2"`).
 * pioarduino pins `tool-scons` 4.8.1 but PlatformIO Core 6.2 needs 4.11.1 and
@@ -185,5 +188,4 @@ src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
 src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/22/36 px)
 tools/gen_font.ps1  regenerates fonts.h; tools/preview_lcd.py previews the LCD
 hardware/bezel/     panel-mount bezel: OpenSCAD source, STLs, cutout DXF
-arduino/            previous Arduino-core implementation
 ```

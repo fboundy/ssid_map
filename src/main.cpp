@@ -1,6 +1,7 @@
-// Penrith MRT Xebro - Wi-Fi SSID selector and NAT router for ESP32-S3 (ESP-IDF).
+// Wi-Fi SSID selector and NAT router for ESP32-S3 (ESP-IDF).
 //
-// Boot:  AP "Penrith MRT Xebro" comes up (default 192.168.137.1) with a web UI.
+// Boot:  the AP named by AP_SSID comes up (default 192.168.137.1) with a web
+//        UI. Everything user-visible takes its name from that one define.
 //        If SSIDs are saved in NVS it joins the strongest visible one as soon
 //        as the first scan lands, and NATs AP clients through it. If nothing
 //        is saved it waits for the user to select networks. Either way it
@@ -39,6 +40,13 @@
 #include "speedtest.h"
 
 static const char* TAG = "xebro";
+
+// The radio truncates an over-long SSID silently, and WPA2 wants 8..63
+// characters or none at all, so catch both at compile time.
+static_assert(sizeof(AP_SSID) - 1 >= 1 && sizeof(AP_SSID) - 1 <= 32,
+              "AP_SSID must be 1 to 32 characters");
+static_assert(sizeof(AP_PASS) - 1 == 0 || (sizeof(AP_PASS) - 1 >= 8 && sizeof(AP_PASS) - 1 <= 63),
+              "AP_PASS must be empty (open AP) or 8 to 63 characters");
 
 // ---- State (guarded by s_lock) ----------------------------------------------
 static SemaphoreHandle_t s_lock;
@@ -530,7 +538,7 @@ extern "C" void app_main(void) {
   esp_chip_info(&chip);
   uint32_t flashSize = 0;
   esp_flash_get_size(nullptr, &flashSize);
-  ESP_LOGI(TAG, "=== Penrith MRT Xebro (ESP-IDF %s) ===", esp_get_idf_version());
+  ESP_LOGI(TAG, "=== %s (ESP-IDF %s) ===", AP_SSID, esp_get_idf_version());
   ESP_LOGI(TAG, "chip rev %d, %d cores, flash %lu MB, psram %u KB, free heap %lu", chip.revision, chip.cores,
            (unsigned long)(flashSize / (1024 * 1024)), (unsigned)(heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024),
            (unsigned long)esp_get_free_heap_size());

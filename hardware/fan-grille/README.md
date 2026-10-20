@@ -1,15 +1,11 @@
 # 40 mm fan grille
 
-Two finger guards for a standard 40 mm fan: a plain concentric-ring one, and
-one cut as the Penrith Mountain Rescue Team badge.
+Flat concentric-ring finger guard for a standard 40 mm fan.
 
 | File | What it is |
 |---|---|
-| `fan_grille.scad` / `fan_grille_40.stl` | plain rings — the one to use if airflow matters |
-| `fan_grille_pmrt.scad` / `fan_grille_40_pmrt.stl` | PMRT badge |
-
-Both share the same mounting: 40 mm square, 2.5 mm thick, four Ø3.2 mm holes
-on 32 mm centres, 36 mm aperture.
+| `fan_grille.scad` | parametric source |
+| `fan_grille_40.stl` | ready to print |
 
 ```
 40.0 × 40.0 × 2.5 mm, corners R2.5
@@ -32,41 +28,11 @@ thin `thickness` much below 2 mm or the frame gets whippy.
 
 ## Airflow
 
-Measured off the rendered outlines, across the 36 mm aperture:
-
-| | open area |
-|---|---|
-| plain rings | **52 %** |
-| PMRT badge | **30 %** |
-
-53 % is normal for a printed guard and finer than a wire one. If you would
-rather have the airflow, `rings = 2` widens the gaps to 3.6 mm and opens the
-plain grille to roughly **62 %**; anything down to one ring still guards a
-finger.
-
-The badge is inherently more restrictive — the logo is mostly solid, and no
-amount of tuning changes that. It is the decorative option; use the plain one
-where the fan is actually working hard.
-
-## The badge version
-
-The roundel read as a cut-through grille: solid where the badge is purple,
-open where it is white. The mountain outline and the cross were traced from
-the team's own artwork on [penrithmrt.org.uk](https://penrithmrt.org.uk/),
-normalised to the radius of the badge's inner disc, so the whole thing scales
-from `disc_r`.
-
-Two deliberate departures from the badge:
-
-* **The lettering is engraved 0.8 mm, not cut through.** Cutting it would drop
-  the counters of O, A, R and P out as loose islands. Set `text_through = true`
-  if you have a stencil font installed.
-* **Two arc slots** break the plain lower quarters of the ring, for airflow.
-  `band_slots = false` removes them and gives you the ring unbroken.
-
-The white outline that separates the cross roundel from the mountain is left
-out — it would have isolated the four quadrants. The cross itself is a through
-opening, so it still reads.
+About **52 % open** across the 36 mm aperture, measured off the rendered
+outline. That is normal for a printed guard and finer than a wire one, which
+matters on a small fan: if you would rather have the airflow than the fine
+mesh, set `rings = 2`, which widens the gaps to 3.6 mm and opens it to roughly
+**62 %**. Anything down to one ring still guards a finger.
 
 ## Other fan sizes
 
