@@ -1,202 +1,378 @@
-# Penrith MRT Xebro — ESP32-S3 Wi-Fi selector / NAT router
+# ESP32-S3 Wi-Fi uplink selector and NAT router
 
-A small vehicle Wi-Fi router. It joins whichever of a chosen set of upstream
-networks is strongest — a satellite terminal or a phone hotspot — and hands a
-private access point to a client device that needs internet but can only speak
-Wi-Fi. The LCD shows which uplink it is on, how fast it is, and whether the
-client has joined.
+A small router for a vehicle or a go-bag. It watches for a list of Wi-Fi
+networks you trust — a satellite terminal, a phone hotspot, a base station —
+joins whichever of them is strongest, and shares that connection over its own
+access point.
 
-* [hardware/PARTS.md](hardware/PARTS.md) — parts list for one unit
+The problem it solves is a device that needs internet but can only join a
+Wi-Fi network, and can't be told which one. It joins *this* router's access
+point and stays there. The router takes care of finding an uplink, switching
+between them, and reconnecting when one drops.
 
-Firmware for ESP32-S3 boards with 16 MB flash + 8 MB octal PSRAM. The device
-always advertises one access point and can join one of a user-selected list of
-upstream networks, routing AP clients through it (NAT).
+On a board with a screen it also shows, at a glance, which uplink it is using,
+how fast that uplink actually is, and whether the device you care about has
+connected.
 
-Two build targets (`platformio.ini`):
+```
+┌─────────────────────────┐      ┌──────────────┐      ┌─────────────┐
+│  uplink networks        │      │              │      │             │
+│  (strongest is chosen)  │─ ─ ─▶│  this router │◀─ ─ ─│ your device │
+│  sat terminal, hotspot… │ WiFi │   NAT + DHCP │ WiFi │             │
+└─────────────────────────┘      └──────────────┘      └─────────────┘
+```
 
-| env | board | notes |
-|---|---|---|
-| `esp32s3_n16r8` | Sparkle IoT ESP32-S3 N16R8 | headless; console on UART0 (CH343 bridge) |
-| `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | adds a status readout on the 1.9" ST7789 LCD and an hourly Ookla speed test; native USB for flashing/console |
+**Jump to:** [Quick start](#quick-start) · [Configuration](#configuration) ·
+[Web interface](#web-interface) · [Display](#the-display) ·
+[Performance](#performance) · [Hardware](#hardware)
 
-Native **ESP-IDF 5.4** build — the Wi-Fi and lwIP options that matter for
-routing throughput are only reachable from a real IDF build.
+---
 
-## Behaviour
+## What it does
 
-| Situation | What the device does |
+From cold, it brings up its access point immediately, so the web interface is
+reachable within a second or so — you never have to wait for it to sort its
+uplink out before you can talk to it.
+
+At the same time it starts scanning. **As soon as the first scan completes, it
+joins the strongest network on its saved list and starts routing** — about
+7 seconds from power-on in practice, of which 3 are the scan itself. There is
+no countdown or grace period; the scan has to finish before "strongest" means
+anything, and that is the only delay.
+
+If the uplink drops or a join fails, it waits five seconds, scans again and
+picks the strongest saved network afresh — which may be a different one. It
+keeps doing that indefinitely.
+
+If no networks have been saved yet, it simply waits, scanning every 30 seconds
+so the web interface shows a current list. Saving your first network starts the
+connection immediately.
+
+### States
+
+The web interface and the logs name the current state. You will mostly see
+`routing`.
+
+| State | Meaning |
 |---|---|
-| Boot, no SSIDs selected | Brings up AP **Penrith MRT Xebro**, scans every 30 s, waits (`waiting`). Selecting one joins it straight away. |
-| Boot, SSIDs selected | Joins the **strongest visible** selected SSID as soon as the first scan lands — about 3 s — and enables NAT (`routing`). Roughly 7 s from power-on to routing. |
-| Uplink drops / join fails | Rescans, waits 5 s, joins the strongest selected SSID again (`retry`). |
-| An enabled **over-ride SSID** is in range | NAT disabled, uplink dropped, stays AP-only (`override`) until it disappears. While routing it rescans every 30 s to check for this (only if an over-ride is enabled). |
-| User presses *Disconnect* | Stays AP-only (`hold`) until *Connect now* or reboot. |
+| `waiting` | No networks saved yet. Scanning; nothing to connect to. |
+| `retry` | Looking for a saved network, or waiting out the five seconds after a failure. |
+| `connecting` | Joining a network. |
+| `routing` | Connected, NAT on, clients have internet. The normal state. |
+| `hold` | You pressed **Disconnect**. Stays access-point-only until you reconnect or reboot. |
+| `override` | An override network is in range — see below. |
 
-Everything (selected SSIDs + passwords, over-ride SSIDs + enabled flags, AP
-subnet) is stored in NVS and survives power cycles and reflashes.
+### Override networks
 
-### Access point
+You can mark a network as an **override**. While an override network is
+visible, the router drops its uplink and refuses to route, staying
+access-point-only until that network goes away again.
 
-* SSID and WPA2 passphrase are `AP_SSID` / `AP_PASS` in `include/config.h`
-  (empty passphrase = open AP). Default `Penrith MRT Xebro`.
-* Default subnet `192.168.137.0/24`: device is `.1`, DHCP leases `.10`–`.29`.
-  Editable on the web page (private /24 only); applies after reboot.
-* Clients get the ESP32 as gateway **and** DNS. A small DNS proxy on the device:
-  * while not routing, answers every name with the AP IP so phones/laptops
-    pop the captive-portal page straight onto the UI;
-  * while routing, forwards queries to the upstream resolver.
-* Regulatory domain `GB`, channels 1–13 (IDF's default world domain is 1–11).
+This is for standing the router down when something else should be handling
+the traffic — when the vehicle is parked somewhere with its own connection,
+for instance, and you would rather not route over a metered link. Overrides
+are a list and each can be enabled or disabled independently.
 
-The LCD is rotated 180° (`LCD_ROTATE_180` in `include/config.h`) so the board
-mounts with its USB-C socket on the left as you look at the screen. That has
-to match `usb_left` in the bezel — see [hardware/bezel/](hardware/bezel/).
+While routing, the radio has to leave its channel to scan, which interrupts
+traffic for about a second. So it only rescans for overrides if at least one
+is actually enabled — if you use no overrides, it never does this.
 
-### Web UI — `http://192.168.137.1/`
+Everything — saved networks and their passwords, overrides, the access point's
+subnet, the named device — is stored in NVS and survives power cycles and
+reflashing.
 
-* **Status** — current mode, uplink IP/RSSI, *Connect now* /
-  *Disconnect* / *Rescan*.
-* **Available networks** — live scan sorted by signal. *Select* (with password)
-  adds an SSID to the selected list; *+Over-ride* adds it as an over-ride.
-* **Selected networks** — edit password, connect to a specific one, remove.
-  Networks not in the scan (hidden SSIDs) can be added by name.
-* **Over-ride SSIDs** — pick from the scan or type one; enable/disable each
-  with the checkbox; remove.
-* **Named host** — give one connected device (picked from the client list or
-  typed as a MAC) a name. Only one at a time: setting a new one replaces it.
-  Purely a label for the LCD — it does not affect routing.
-* **Access point** — change the /24 network, reboot.
+---
 
-JSON API (form-encoded POSTs) lives under `/api/*`; see [src/web_ui.cpp](src/web_ui.cpp).
+## Quick start
 
-### LCD status page (`ws_touch_lcd_19` only)
+You need [PlatformIO](https://platformio.org/). The build uses the
+[pioarduino](https://github.com/pioarduino/platform-espressif32) platform
+54.03.21 with `framework = espidf` (ESP-IDF 5.4.2).
 
-Landscape 320×170, split in two. Refreshed once a second, redrawn only when
-something changes. No touch interaction.
+**`include/config.h` is not in the repository** — it holds the access point's
+passphrase. Copy the template before your first build:
 
-Both halves share one layout: a small label and a large name on the left, a
-status block in a column on the right.
-
-**Top half** — the internet uplink:
-
-* `Internet Connection:` above the SSID, set in the largest of four faces
-  (36/22/20/16 px) that fits the 214 px column - a 16-character SSID such as
-  "Vehicle Mobile 1" still gets the 22 px face.
-* Right: the latest speed test as a green down-arrow and a blue up-arrow with
-  the two figures, under a shared `Mb/s` label.
-* No uplink, NAT off, or a failed test: the right column becomes a red
-  no-entry symbol over `No Internet`. While a test runs: `Speed test...`.
-* If an enabled over-ride SSID is in range the whole half becomes
-  `Over-ridden by:` above that SSID, in red.
-
-**Bottom half** — the named device:
-
-* `Device Connection:` above the device's name, with its DHCP lease IP
-  underneath when it is on the AP — or `None set`.
-* Right: a green tick over `Connected`, or a red no-entry symbol over
-  `Not Connected`.
-
-The device name uses at most the 22 px face, so the lease line always has
-room; the uplink SSID above it can still go to 36 px.
-
-Driver: IDF `esp_lcd` ST7789 over SPI3 (SCLK 10, MOSI 13, CS 12, DC 11, RST 9,
-backlight 14 on LEDC PWM — from Waveshare's demo code), 35-px panel offset,
-vendor porch/VCOM/gamma tuning registers, framebuffer in PSRAM pushed through
-DMA bounce buffers. Text uses a bitmap font generated from Consolas by GDI+
-(`src/fonts.h`, regenerate with `pwsh tools/gen_font.ps1 -Out src/fonts.h`);
-arrows and the no-entry symbol are drawn as primitives.
-`tools/preview_lcd.py` renders the same layout to a PNG from `fonts.h`, so
-spacing can be checked without flashing.
-
-### Speed test (`ws_touch_lcd_19` only, `-DXEBRO_SPEEDTEST`)
-
-An Ookla (speedtest.net) test runs 5 s after the uplink comes up and then
-every hour while routing; the web page also has a *Speed test* button.
-[src/speedtest.cpp](src/speedtest.cpp) fetches the nearest server from
-`speedtest.net/api/js/servers` (HTTPS, IDF cert bundle), then streams a
-plain-HTTP download (`/download?size=`, falling back to the classic
-`random4000x4000.jpg`) and a sized upload (`/upload`, falling back to
-`upload.php`) against the server's port 8080, 6 s each, single TCP stream.
-Results go to the LCD, the web status card and the serial log. Timings and a
-fixed server override are in `config.h` (`SPEEDTEST_*`). Each run moves
-roughly 2 × 6 s × link rate of data (~35 MB at 20 Mbit/s).
-
-## Throughput tuning (`sdkconfig.defaults`)
-
-* NAT: `LWIP_IP_FORWARD`, `LWIP_IPV4_NAPT`, `LWIP_L2_TO_L3_COPY`.
-* Wi-Fi and lwIP hot paths in IRAM; lwIP task pinned to core 1 (Wi-Fi on core 0).
-* 24 static / 64 dynamic RX buffers, 64 dynamic TX buffers, 32-frame AMPDU
-  block-ack windows, modem sleep off, IPv6 off, `-O2`, 240 MHz, octal PSRAM.
-
-The radio is shared between the AP and the uplink on one channel, so the ceiling
-is roughly half of what a single link would do; measured 17.5/19.4 Mbit/s
-down/up against a 500/100 uplink.
-
-## Building
-
-PlatformIO with the [pioarduino](https://github.com/pioarduino/platform-espressif32)
-platform 54.03.21, `framework = espidf` (IDF 5.4.2).
-
-**`include/config.h` is not in the repo** — it holds the AP passphrase. Copy
-the template first; a fresh clone builds straight after:
-
-```
-cp include/config.example.h include/config.h   # then set AP_PASS
-pio run -e esp32s3_n16r8                     # Sparkle (headless)
-pio run -e esp32s3_n16r8 -t upload           # flash via COM5 (see platformio.ini)
-pio run -e ws_touch_lcd_19 -t upload --upload-port COM4   # Waveshare, native USB
-pio device monitor                           # serial log at 115200
+```bash
+cp include/config.example.h include/config.h
 ```
 
-`include/config.h` holds the AP passphrase and is not committed; the committed
-`config.example.h` has every other tunable at its default.
+Open it and set `AP_PASS`. Everything else is already at a working value, so a
+fresh clone builds as soon as you have made that copy.
 
-The device's name comes from **`AP_SSID`** in that file. It names the access
-point, the web page's title and heading, the LCD splash and the boot log, so
-changing it there renames the whole device. It is checked at compile time for
-the 32-character SSID limit, as is `AP_PASS` for WPA2's 8–63.
+Then build and flash whichever board you have:
 
-The Waveshare board enumerates as an Espressif "USB Serial Device" (VID 303A,
-PID 1001); the COM number varies, so pass `--upload-port`. Logs go to both
-UART0 and the USB port.
+```bash
+# Board with the 1.9" screen (Waveshare ESP32-S3-Touch-LCD-1.9)
+pio run -e ws_touch_lcd_19 -t upload --upload-port COM4
 
-Notes for this Windows machine:
+# Headless board (Sparkle IoT ESP32-S3 N16R8)
+pio run -e esp32s3_n16r8 -t upload
 
-* Run PlatformIO from PowerShell/VS Code, not Git Bash — the platform's
+# Serial log, 115200 baud
+pio device monitor
+```
+
+The Waveshare board has native USB and appears as an Espressif "USB Serial
+Device" (VID `303A`, PID `1001`). Its COM port number changes between
+machines, so pass `--upload-port`. Logs go to both UART0 and the USB port.
+
+### Supported boards
+
+Both are ESP32-S3 with 16 MB flash and 8 MB octal PSRAM.
+
+| Environment | Board | What you get |
+|---|---|---|
+| `ws_touch_lcd_19` | Waveshare ESP32-S3-Touch-LCD-1.9 | Everything, including the status display and the hourly speed test. Native USB for flashing and logs. |
+| `esp32s3_n16r8` | Sparkle IoT ESP32-S3 N16R8 | Routing and the web interface, no display or speed test. Console on UART0 via a CH343 bridge. |
+
+This is a native ESP-IDF build rather than Arduino, because the Wi-Fi and lwIP
+settings that matter for routing throughput can only be reached from a real
+IDF build — see [Performance](#performance).
+
+---
+
+## Configuration
+
+There are two levels: things fixed when you build, and things you change from
+the web interface while it is running.
+
+### At build time — `include/config.h`
+
+Copied from `config.example.h`, and not committed because it holds the
+passphrase. The settings you are most likely to touch:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `AP_SSID` | `Penrith MRT Xebro` | **Names the whole device.** |
+| `AP_PASS` | — | WPA2 passphrase. Leave it empty for an open access point. |
+| `AP_DEFAULT_NETWORK` | `192.168.137.0` | Access point subnet, before any change made from the web interface. |
+| `WIFI_COUNTRY` | `GB` | Regulatory domain. |
+| `LCD_ROTATE_180` | `1` | Screen orientation — see [Display](#the-display). |
+| `SPEEDTEST_*` | hourly, 6 s | Speed test timing — see [Speed test](#speed-test). |
+
+`AP_SSID` is worth singling out. It does not only name the access point: the
+web page's title and heading, the splash on the screen and the boot banner all
+take their text from it, so changing that one line renames the device
+everywhere. It is checked at compile time against Wi-Fi's 32-character limit,
+as is `AP_PASS` against WPA2's 8-to-63.
+
+### At run time — the web interface
+
+Saved networks, overrides, the named device and the access point's subnet are
+all set from the web page and kept in NVS. Nothing needs reflashing.
+
+---
+
+## The access point
+
+* **Name and passphrase** come from `AP_SSID` and `AP_PASS`. An empty
+  passphrase makes it an open network.
+* **Subnet** defaults to `192.168.137.0/24` — the router is `.1` and hands out
+  leases from `.10` to `.29`. You can change the subnet from the web page
+  (any private /24); it takes effect after a reboot.
+* **Channel 1**, up to 8 clients, regulatory domain `GB` so channels 1–13 are
+  available. ESP-IDF's default world domain only allows 1–11.
+
+Clients get the router as both their gateway and their DNS server, which lets
+it do something useful with name lookups:
+
+* **While it has no uplink**, it answers every lookup with its own address.
+  Phones and laptops notice this and pop up their "sign in to network" page,
+  which lands straight on the web interface — so a device that has just joined
+  shows you the settings page without anyone having to type an address.
+* **While routing**, it forwards lookups to the upstream resolver as normal.
+
+---
+
+## Web interface
+
+At `http://192.168.137.1/`, or just join the access point and accept the
+sign-in prompt.
+
+| Section | What it is for |
+|---|---|
+| **Status** | Current state, uplink address and signal, the last speed test. Buttons for **Connect now**, **Disconnect** and **Rescan**. |
+| **Available networks** | Live scan, strongest first. **Select** adds a network to the saved list (with its password); **+Override** marks it as an override. |
+| **Selected networks** | The saved list. Change a password, force a connection to a particular one, or remove it. Hidden networks can be added by typing the name. |
+| **Override networks** | Add by picking from the scan or typing a name; tick to enable, untick to disable, or remove. |
+| **Named device** | Give one connected device a name, by picking it from the client list or typing its MAC. One at a time — setting a new one replaces it. This is only a label for the screen; it has no effect on routing. |
+| **Access point** | Change the subnet, or reboot. |
+
+Everything the page shows comes from a small JSON API under `/api/*`, which
+you are welcome to drive yourself — the routes are at the bottom of
+[`src/web_ui.cpp`](src/web_ui.cpp).
+
+---
+
+## The display
+
+*Boards with a screen only.* Landscape, 320 × 170, updated once a second and
+redrawn only when something actually changes. There is no touch interaction —
+the screen is purely a readout.
+
+It is split into two halves with the same layout: a small caption and a large
+name on the left, a status block on the right.
+
+**Top half — the internet uplink.** `Internet Connection:` above the network
+name, with the latest speed test on the right: a green down-arrow and a blue
+up-arrow with their figures under a shared `Mb/s` label.
+
+* No uplink, NAT off, or a failed test shows a red no-entry symbol over
+  `No Internet` instead of the figures.
+* While a test is running, `Speed test...`.
+* If an override network is in range, the whole half is replaced by
+  `Over-ridden by:` and that network's name, in red.
+
+**Bottom half — the named device.** `Device Connection:` above the name you
+gave it, with its DHCP lease address underneath while it is connected, and on
+the right either a green tick over `Connected` or a red no-entry symbol over
+`Not Connected`. If you have not named a device, it reads `None set`.
+
+Network names are set in the largest of four font sizes that fits the column,
+so short names are large and long ones step down gracefully rather than
+falling off a cliff. A 16-character name still gets the second-largest face.
+
+### Orientation
+
+`LCD_ROTATE_180` in `config.h` turns the image over, so the board can be
+mounted with its USB-C socket on either side. It is set to `1` by default,
+putting the socket on the left as you look at the screen.
+
+**If you are using the printed bezel, this has to agree with `usb_left` in
+[`hardware/bezel/bezel.scad`](hardware/bezel/bezel.scad).** The bezel is
+handed — its window is deliberately off-centre and its clamp ribs avoid the
+buttons at one end only — so the two settings must describe the same
+orientation.
+
+### How it is drawn
+
+IDF's `esp_lcd` ST7789 driver over SPI3, with the vendor's porch, VCOM and
+gamma registers (the panel shows nothing without them). The framebuffer lives
+in PSRAM and is pushed out through DMA bounce buffers. Text uses a bitmap font
+generated from Consolas; arrows, the tick and the no-entry symbol are drawn as
+primitives.
+
+```bash
+pwsh tools/gen_font.ps1 -Out src/fonts.h   # regenerate the fonts
+python tools/preview_lcd.py preview.png    # render the layout without flashing
+```
+
+`preview_lcd.py` reads the same `fonts.h` and mirrors the drawing code, so you
+can check spacing and font choices for every screen state as an image rather
+than by reflashing and squinting.
+
+---
+
+## Speed test
+
+*Boards with a screen only.* An [Ookla](https://www.speedtest.net/) test runs
+five seconds after the uplink comes up and then hourly while routing, so the
+figure on the screen reflects the link you are actually on. There is also a
+**Speed test** button on the web page.
+
+It picks the nearest server from Speedtest's own server list over HTTPS, then
+runs a six-second download and a sized upload straight against that server,
+single TCP stream. Results go to the screen, the web page and the serial log.
+
+Timings and a fixed-server override are the `SPEEDTEST_*` settings in
+`config.h`. Be aware of the cost: each run moves roughly
+2 × 6 s × your link rate — about **35 MB per run at 20 Mbit/s**, or 35 MB an
+hour at the default interval. On a metered link, lengthen
+`SPEEDTEST_INTERVAL_MS` or shorten `SPEEDTEST_SECONDS`.
+
+---
+
+## Performance
+
+**Measured: 17.5 Mbit/s down, 19.4 Mbit/s up**, routing through to a 500/100
+uplink.
+
+That is the hardware ceiling rather than a tuning problem. One radio is shared
+between the access point and the uplink on a single channel, so it time-slices
+between them, and every packet crosses the NAT table on a 240 MHz core. Expect
+roughly half of what a single link would manage.
+
+If your uplink is slower than about 17 Mbit/s, the router will not be your
+bottleneck.
+
+Everything in `sdkconfig.defaults` that matters for this:
+
+* **NAT** — `LWIP_IP_FORWARD`, `LWIP_IPV4_NAPT`, `LWIP_L2_TO_L3_COPY`.
+* **Hot paths in IRAM** — Wi-Fi and lwIP, so flash access cannot stall them.
+* **Cores split** — lwIP pinned to core 1, Wi-Fi driver on core 0.
+* **Buffers** — 24 static and 64 dynamic RX, 64 dynamic TX, 32-frame AMPDU
+  block-ack windows.
+* **Everything else out of the way** — modem sleep off, IPv6 off, `-O2`,
+  240 MHz, octal PSRAM.
+
+One caveat worth knowing: under a saturating test, loaded latency rises to
+around 150–200 ms as those deep buffers fill. That only happens when the
+router itself is the bottleneck. On a slower uplink the queues stay shallow
+and latency stays low — but if it matters to you, halving the buffer counts
+trades a little throughput for a lot less queueing delay.
+
+---
+
+## Hardware
+
+[**hardware/PARTS.md**](hardware/PARTS.md) is the full parts list for one
+unit, with suppliers and part numbers.
+
+[**hardware/bezel/**](hardware/bezel/) is a parametric two-part 3D-printed
+bezel that mounts the Waveshare board into a flat panel behind a 1 mm
+protective sheet. It clamps the board rather than screwing to it, and closes
+into a box behind the panel that covers the pin headers. Includes STLs, a
+panel-cutout DXF and the board dimensions it depends on.
+
+[**hardware/fan-grille/**](hardware/fan-grille/) is a printable finger guard
+for a 40 mm fan, parametric for other sizes.
+
+Both are OpenSCAD, so the dimensions are readable and editable rather than
+baked into a mesh.
+
+---
+
+## Project layout
+
+```
+platformio.ini        build environments for both boards
+sdkconfig.defaults    ESP-IDF options: NAT, throughput, memory
+partitions.csv        NVS + 4 MB factory app
+include/config.h      your settings (not committed; copy config.example.h)
+
+src/main.cpp          startup, Wi-Fi, the state machine, NAT on and off
+src/store.*           NVS-backed lists: saved networks, overrides, subnet
+src/dns_proxy.*       captive-portal and forwarding DNS, on UDP 53
+src/web_ui.*          HTTP routes and the JSON status
+src/page.h            the web page, inline HTML/CSS/JS
+src/display.*         the status screen
+src/speedtest.*       the Ookla client
+src/fonts.h           generated bitmap fonts
+
+tools/gen_font.ps1    regenerates fonts.h
+tools/preview_lcd.py  renders the screen layout to a PNG
+
+hardware/             bezel, fan grille, parts list
+```
+
+---
+
+## Building on Windows
+
+Not required reading — only relevant if the build misbehaves on Windows. These
+are all environment problems rather than anything in this repository.
+
+* **Run PlatformIO from PowerShell or VS Code, not Git Bash.** The platform's
   toolchain installer (`idf_tools.py`) refuses to run under MSYS.
-* Windows long-path support is off, so PlatformIO could not unpack the
-  `framework-espidf` archive itself. It was extracted with a `\\?\`-path
-  script into `~/.platformio/packages/` with a hand-written `.piopm`;
-  enabling long paths (admin) avoids this.
-* The bundled `esptool` needs `click < 8.2` in PlatformIO's venv
-  (`~/.platformio/penv/Scripts/python -m pip install "click<8.2"`).
-* pioarduino pins `tool-scons` 4.8.1 but PlatformIO Core 6.2 needs 4.11.1 and
-  they overwrite each other every run. `~/.platformio/platforms/espressif32/platform.json`
-  has `tool-scons.package-version` changed to `4.41101.0` (original saved as
-  `platform.json.orig`).
-
-## Enclosure
-
-[hardware/bezel/](hardware/bezel/) has a parametric two-part 3D-printed bezel
-that mounts the Waveshare board into a flat panel behind a 1 mm protective
-sheet, with STLs, a panel-cutout DXF and the module's dimensions.
-
-[hardware/fan-grille/](hardware/fan-grille/) is a printable finger guard for a
-40 mm fan, parametric for other sizes.
-
-## Layout
-
-```
-platformio.ini      envs for both boards; framework = espidf
-sdkconfig.defaults  IDF options (NAT, throughput, memory)
-partitions.csv      nvs + 4 MB factory app
-include/config.h    tunables: AP name/password, timings (local; from config.example.h)
-src/main.cpp        app_main, Wi-Fi bring-up, state machine, NAT enable/disable
-src/store.*         NVS-backed lists (selected, over-rides, AP subnet)
-src/dns_proxy.*     captive / forwarding DNS task on UDP 53
-src/web_ui.*        esp_http_server routes + cJSON status
-src/page.h          the single-page UI (inline HTML/CSS/JS)
-src/display.*       ST7789 status page (compiled with -DXEBRO_DISPLAY_WS19)
-src/fonts.h         generated 1-bit bitmap fonts (Consolas 16/20/22/36 px)
-tools/gen_font.ps1  regenerates fonts.h; tools/preview_lcd.py previews the LCD
-hardware/bezel/     panel-mount bezel: OpenSCAD source, STLs, cutout DXF
-```
+* **Long path support.** With it disabled, PlatformIO cannot unpack the
+  `framework-espidf` archive — the ESP-IDF tree has paths over 260 characters.
+  Enabling long paths (needs administrator) is the clean fix; otherwise
+  extract the archive manually into `~/.platformio/packages/` and write a
+  `.piopm` marker by hand.
+* **esptool needs `click < 8.2`.** Newer click changes an API esptool uses:
+  `~/.platformio/penv/Scripts/python -m pip install "click<8.2"`.
+* **SCons version clash.** pioarduino pins `tool-scons` 4.8.1 while PlatformIO
+  Core 6.2 wants 4.11.1, and they overwrite each other on every run, leaving a
+  broken tree (`No module named SCons.Tool.FortranCommon`). Set
+  `tool-scons.package-version` to `4.41101.0` in
+  `~/.platformio/platforms/espressif32/platform.json`.
