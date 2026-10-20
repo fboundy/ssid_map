@@ -62,19 +62,13 @@ behind it — check that against wherever it goes in the case.
 | 1 | **N plug → RP-TNC plug**, 200 series, 350 mm — N30T60-200-350 | [RF Shop](https://rfshop.co.uk/product/n-plug-to-rp-tnc-plug-200-series-cable-350mm-n30t60-200-350/) | £15.56 ex VAT |
 | 1 | **N plug → N plug**, 400 series, 500 mm — N30N30-400-500 | [RF Shop](https://rfshop.co.uk/product/coaxial-cable-assembly-n-plug-to-n-plug-400-series-0-5m-n30n30-400-500/) | £20.97 ex VAT |
 
-Feeds the vehicle antenna to the **Simoco SDM730**, whose antenna port is a
-TNC-threaded socket.
+Feeds the vehicle antenna to the **Simoco SDM730**, confirmed working on the
+vehicle.
 
-> **Check the polarity once.** The pigtail is **RP-TNC**, not TNC — reverse
-> polarity swaps the centre contacts while keeping the same 7/16-28 thread,
-> so a wrong one screws on just as tightly as a right one and the only
-> symptom is no centre-conductor contact.
->
-> Look into the centre of the radio's socket. A **pin** means it is an RP-TNC
-> jack and this cable is correct. A **hole** means it is a conventional TNC
-> jack, the cable's socket has nothing to meet, and the part needed instead is
-> [N30T30-200-500](https://rfshop.co.uk/product/n-plug-male-pin-to-tnc-plug-male-pin-200-series-cable-0-5m-n30t30-200-500/)
-> — N plug to TNC plug, 200 series, 0.5 m, £14.02 ex VAT.
+> Note for anyone replacing the pigtail: the radio's antenna port is an
+> **RP-TNC** jack, so the cable must be RP-TNC too. A conventional TNC cable
+> shares the same 7/16-28 thread and will screw on just as tightly, but its
+> centre contact is the wrong gender and nothing will pass.
 
 ## Enclosure
 
